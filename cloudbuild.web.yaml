@@ -1,12 +1,19 @@
 substitutions:
   _REGION: europe-west1
   _SERVICE: imarsinyal-web
-  _CONTACT_EMAIL: iletisim@example.com
-  _TEST_RECIPIENT: owner@example.com
+  _CONTACT_EMAIL: digitalpratix@gmail.com
+  _TEST_RECIPIENT: digitalpratix@gmail.com
   _DATA_CONTROLLER_NAME: İmarSinyal Ankara işletmecisi
-  _RESEND_AUDIENCE_ID: disabled
+  _RESEND_AUDIENCE_ID: 1475e535-b7ef-4f72-ae6e-9a8c3724ec04
+  _POSTHOG_PROJECT_TOKEN: disabled
+  _POSTHOG_HOST: https://us.i.posthog.com
 
 steps:
+  - name: node:22-alpine
+    entrypoint: sh
+    args:
+      - -c
+      - corepack enable && pnpm install --frozen-lockfile && pnpm --filter @imarsinyal/web test && pnpm --filter @imarsinyal/web lint
   - name: gcr.io/cloud-builders/docker
     args:
       - build
@@ -35,8 +42,8 @@ steps:
       - --memory=512Mi
       - --cpu=1
       - --service-account=imarsinyal-runtime@${PROJECT_ID}.iam.gserviceaccount.com
-      - --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},ALLOW_SEED_FALLBACK=false,NEWSLETTER_PUBLIC_SENDS=false,CONTACT_EMAIL=${_CONTACT_EMAIL},DATA_CONTROLLER_NAME=${_DATA_CONTROLLER_NAME},RESEND_TEST_RECIPIENT=${_TEST_RECIPIENT},RESEND_AUDIENCE_ID=${_RESEND_AUDIENCE_ID}
-      - --set-secrets=UNSUBSCRIBE_SECRET=unsubscribe-secret:latest
+      - --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},ALLOW_SEED_FALLBACK=false,NEWSLETTER_PUBLIC_SENDS=false,CONTACT_EMAIL=${_CONTACT_EMAIL},DATA_CONTROLLER_NAME=${_DATA_CONTROLLER_NAME},RESEND_TEST_RECIPIENT=${_TEST_RECIPIENT},RESEND_AUDIENCE_ID=${_RESEND_AUDIENCE_ID},POSTHOG_PROJECT_TOKEN=${_POSTHOG_PROJECT_TOKEN},POSTHOG_HOST=${_POSTHOG_HOST}
+      - --set-secrets=UNSUBSCRIBE_SECRET=unsubscribe-secret:latest,RESEND_API_KEY=resend-api-key:latest
 
 images:
   - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/imarsinyal/web:${BUILD_ID}

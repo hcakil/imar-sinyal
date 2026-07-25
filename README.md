@@ -36,6 +36,10 @@ API:
 Tarayıcı Firestore'a doğrudan erişmez. Okuma ve yazma Next.js sunucusu
 üzerindendir; Firestore güvenlik kuralları istemci erişimini kapatır.
 
+Tarih alanları tarayıcı dilinden bağımsız Türkçe takvim kullanır. İsteğe bağlı
+PostHog entegrasyonu varsayılan olarak kapalıdır; kullanıcı analitik izni
+vermeden olay göndermez, oturum kaydı ve form içeriği toplamaz.
+
 ## Veri hattı
 
 ```text
@@ -236,6 +240,24 @@ NEWSLETTER_FROM=İmarSinyal Ankara <bulten@alanadiniz.com>
 ```
 
 değerleri açılır.
+
+## Ürün analitiği
+
+PostHog kurulumu isteğe bağlıdır. Project settings sayfasındaki `phc_` ile
+başlayan public project token Cloud Run'da `POSTHOG_PROJECT_TOKEN` olarak
+tanımlandığında izin paneli görünür. Bu token gizli bir yönetim anahtarı
+değildir. Varsayılan host ABD PostHog Cloud için
+`https://us.i.posthog.com` değeridir.
+
+İlk aşamada yalnızca şu değer sinyalleri ölçülür:
+
+- sayfa görüntüleme
+- değişiklik filtresi kullanımı
+- detay/kaynak belge açma
+- bülten kaydının tamamlanması
+
+E-posta, form içeriği ve session replay PostHog'a gönderilmez. Kullanıcı
+iznini altbilgideki **Analitik tercihleri** düğmesinden değiştirebilir.
 
 ## İzleme
 

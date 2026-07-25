@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = { title: "Gizlilik ve KVKK" };
 
 export default function PrivacyPage() {
-  const contact = process.env.CONTACT_EMAIL || "iletisim@example.com";
+  const contact = process.env.CONTACT_EMAIL || "digitalpratix@gmail.com";
   const controller =
     process.env.DATA_CONTROLLER_NAME || "İmarSinyal Ankara işletmecisi";
   return (
@@ -35,8 +35,10 @@ export default function PrivacyPage() {
         <h2>Hizmet sağlayıcılar</h2>
         <p>
           Barındırma ve veri işleme için Google Cloud/Firebase, e-posta teslimatı
-          için Resend kullanılabilir. Bu sağlayıcılar kendi güvenlik ve veri
-          işleme şartlarına tabidir.
+          için Resend kullanılır. Yalnızca izin vermeniz halinde anonim ürün
+          kullanımını ölçmek için PostHog kullanılabilir. Analitik tercihini
+          reddettiğinizde PostHog&apos;a kullanım olayı gönderilmez. Bu
+          sağlayıcılar kendi güvenlik ve veri işleme şartlarına tabidir.
         </p>
         <h2>Haklarınız</h2>
         <p>

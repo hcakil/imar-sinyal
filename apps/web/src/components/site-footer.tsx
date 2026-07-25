@@ -1,6 +1,11 @@
 import Link from "next/link";
+import { AnalyticsPreferenceButton } from "./analytics-consent";
 
-export function SiteFooter() {
+export function SiteFooter({
+  analyticsEnabled = false,
+}: {
+  analyticsEnabled?: boolean;
+}) {
   return (
     <footer className="site-footer">
       <div className="shell footer-grid">
@@ -28,6 +33,7 @@ export function SiteFooter() {
           <strong>Bilgi</strong>
           <Link href="/gizlilik">Gizlilik</Link>
           <Link href="/kullanim-kosullari">Kullanım koşulları</Link>
+          {analyticsEnabled ? <AnalyticsPreferenceButton /> : null}
         </div>
       </div>
       <div className="shell footer-bottom">

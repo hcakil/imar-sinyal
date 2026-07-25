@@ -943,6 +943,21 @@ p {
   color: #efa47a;
 }
 
+.footer-preference {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.footer-preference:hover {
+  color: #efa47a;
+}
+
 .footer-bottom {
   display: flex;
   justify-content: space-between;
@@ -951,6 +966,53 @@ p {
   border-top: 1px solid #1d372e;
   color: #688177;
   font-size: 10px;
+}
+
+.analytics-consent {
+  position: fixed;
+  z-index: 120;
+  right: 22px;
+  bottom: 22px;
+  display: grid;
+  width: min(470px, calc(100% - 32px));
+  grid-template-columns: 1fr auto;
+  gap: 22px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  color: #fff;
+  background: var(--ink);
+  box-shadow: 0 22px 70px rgba(8, 28, 22, 0.3);
+}
+
+.analytics-consent strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 17px;
+}
+
+.analytics-consent p {
+  margin: 6px 0 0;
+  color: #b8cbc2;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.analytics-consent-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.analytics-consent .button {
+  min-height: 39px;
+  padding-inline: 13px;
+  font-size: 11px;
+}
+
+.button-ghost-dark {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  background: transparent;
 }
 
 .page-section,
@@ -988,7 +1050,10 @@ p {
 .filter-panel {
   display: grid;
   align-items: flex-end;
-  grid-template-columns: minmax(230px, 1.7fr) repeat(3, minmax(130px, 1fr)) auto;
+  grid-template-columns:
+    minmax(220px, 1.45fr)
+    repeat(5, minmax(118px, 1fr))
+    auto;
   gap: 10px;
   padding: 14px;
   border: 1px solid var(--line);
@@ -996,12 +1061,14 @@ p {
   background: var(--white);
 }
 
-.filter-panel > label:not(.impact-toggle) {
+.filter-panel > label:not(.impact-toggle),
+.filter-panel > .date-field {
   display: grid;
   gap: 5px;
 }
 
-.filter-panel label > span {
+.filter-panel label > span,
+.filter-panel .date-label {
   color: var(--muted);
   font-size: 9px;
   font-weight: 800;
@@ -1010,7 +1077,8 @@ p {
 }
 
 .filter-panel input,
-.filter-panel select {
+.filter-panel select,
+.date-input {
   width: 100%;
   height: 43px;
   border: 1px solid var(--line);
@@ -1018,6 +1086,128 @@ p {
   outline: none;
   color: var(--ink);
   background: #fbfaf6;
+}
+
+.date-field {
+  position: relative;
+  min-width: 0;
+}
+
+.date-input {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.date-placeholder {
+  color: #87918c;
+}
+
+.calendar-symbol {
+  color: var(--orange-dark);
+  font-size: 17px;
+}
+
+.date-popover {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 292px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  color: var(--ink);
+  background: var(--white);
+  box-shadow: 0 20px 55px rgba(19, 44, 37, 0.2);
+}
+
+.date-popover-header {
+  display: grid;
+  align-items: center;
+  grid-template-columns: 34px 1fr 34px;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.date-popover-header strong {
+  text-align: center;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+}
+
+.date-popover button {
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.date-popover-header button {
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.date-weekdays,
+.date-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.date-weekdays span {
+  padding: 5px 0;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.date-days > button,
+.date-days > span {
+  display: grid;
+  min-width: 0;
+  height: 32px;
+  place-items: center;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.date-days > button:hover:not(:disabled) {
+  background: var(--orange-soft);
+}
+
+.date-days > button[aria-pressed="true"] {
+  color: #fff;
+  background: var(--orange);
+}
+
+.date-days > button.date-today:not([aria-pressed="true"]) {
+  box-shadow: inset 0 0 0 1px var(--orange);
+}
+
+.date-days > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.28;
+}
+
+.date-popover-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.date-popover-footer button {
+  color: var(--orange-dark);
+  font-size: 10px;
+  font-weight: 750;
 }
 
 .filter-panel select {
@@ -1046,7 +1236,8 @@ p {
 }
 
 .filter-panel input:focus,
-.filter-panel select:focus {
+.filter-panel select:focus,
+.date-input:focus {
   border-color: var(--orange);
   box-shadow: 0 0 0 3px rgba(185, 85, 40, 0.12);
 }
@@ -1860,6 +2051,23 @@ p {
 
   .filter-panel {
     grid-template-columns: 1fr;
+  }
+
+  .date-popover {
+    right: auto;
+    left: 0;
+    width: min(292px, calc(100vw - 58px));
+  }
+
+  .analytics-consent {
+    right: 16px;
+    bottom: 16px;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .analytics-consent-actions {
+    justify-content: flex-end;
   }
 
   .search-field {

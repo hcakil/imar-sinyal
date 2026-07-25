@@ -127,7 +127,7 @@ def send_weekly_newsletter(
 ) -> dict[str, Any]:
     current = now or datetime.now(UTC)
     site_url = os.getenv("SITE_URL", "http://localhost:3000").rstrip("/")
-    api_key = os.getenv("RESEND_API_KEY", "")
+    api_key = os.getenv("RESEND_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("RESEND_API_KEY is not configured")
     public_sends = os.getenv("NEWSLETTER_PUBLIC_SENDS", "false").lower() == "true"

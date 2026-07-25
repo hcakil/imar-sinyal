@@ -1,15 +1,17 @@
 packages:
   - "apps/*"
-onlyBuiltDependencies:
-  - "@firebase/util"
-  - "esbuild"
-  - "protobufjs"
-  - "sharp"
 allowBuilds:
   "@firebase/util": true
+  core-js: true
   esbuild: true
   protobufjs: true
   sharp: true
+onlyBuiltDependencies:
+  - "@firebase/util"
+  - "core-js"
+  - "esbuild"
+  - "protobufjs"
+  - "sharp"
 overrides:
   postcss: 8.5.18
   sharp: 0.35.0

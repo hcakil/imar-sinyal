@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { captureFilterUse } from "./analytics-consent";
 import { EventCard } from "./event-card";
+import { TurkishDatePicker } from "./turkish-date-picker";
 import type { ChangeCategory, PlanningEvent } from "@/lib/types";
 
 export function EventFilter({
@@ -63,7 +65,13 @@ export function EventFilter({
         </label>
         <label>
           <span>İlçe</span>
-          <select value={district} onChange={(event) => setDistrict(event.target.value)}>
+          <select
+            value={district}
+            onChange={(event) => {
+              setDistrict(event.target.value);
+              captureFilterUse("district", event.target.value);
+            }}
+          >
             <option value="">Tüm ilçeler</option>
             {districts.map((item) => (
               <option key={item}>{item}</option>
@@ -72,7 +80,13 @@ export function EventFilter({
         </label>
         <label>
           <span>Aşama</span>
-          <select value={stage} onChange={(event) => setStage(event.target.value)}>
+          <select
+            value={stage}
+            onChange={(event) => {
+              setStage(event.target.value);
+              captureFilterUse("stage", event.target.value);
+            }}
+          >
             <option value="">Tüm aşamalar</option>
             <option value="council_approved">Mecliste onaylandı</option>
             <option value="on_appeal">Askıda</option>
@@ -83,7 +97,10 @@ export function EventFilter({
           <span>Değişiklik</span>
           <select
             value={category}
-            onChange={(event) => setCategory(event.target.value)}
+            onChange={(event) => {
+              setCategory(event.target.value);
+              captureFilterUse("category", event.target.value);
+            }}
           >
             <option value="">Tüm türler</option>
             <option value="construction_conditions">Yapılaşma koşulu</option>
@@ -93,29 +110,32 @@ export function EventFilter({
             <option value="procedural">Prosedürel</option>
           </select>
         </label>
-        <label>
-          <span>Başlangıç</span>
-          <input
-            type="date"
-            value={fromDate}
-            max={toDate || undefined}
-            onChange={(event) => setFromDate(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>Bitiş</span>
-          <input
-            type="date"
-            value={toDate}
-            min={fromDate || undefined}
-            onChange={(event) => setToDate(event.target.value)}
-          />
-        </label>
+        <TurkishDatePicker
+          label="Başlangıç"
+          value={fromDate}
+          max={toDate || undefined}
+          onChange={(next) => {
+            setFromDate(next);
+            captureFilterUse("from_date", Boolean(next));
+          }}
+        />
+        <TurkishDatePicker
+          label="Bitiş"
+          value={toDate}
+          min={fromDate || undefined}
+          onChange={(next) => {
+            setToDate(next);
+            captureFilterUse("to_date", Boolean(next));
+          }}
+        />
         <label className="impact-toggle">
           <input
             type="checkbox"
             checked={highImpact}
-            onChange={(event) => setHighImpact(event.target.checked)}
+            onChange={(event) => {
+              setHighImpact(event.target.checked);
+              captureFilterUse("high_impact", event.target.checked);
+            }}
           />
           <span>Yalnızca yüksek etki</span>
         </label>

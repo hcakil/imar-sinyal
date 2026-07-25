@@ -1,8 +1,8 @@
 substitutions:
   _REGION: europe-west1
   _NEWSLETTER_JOB: imarsinyal-newsletter
-  _SITE_URL: https://example.web.app
-  _TEST_RECIPIENT: owner@example.com
+  _SITE_URL: https://imar-sinyal.web.app
+  _TEST_RECIPIENT: digitalpratix@gmail.com
 
 steps:
   - name: gcr.io/cloud-builders/docker

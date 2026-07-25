@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { captureAnalytics } from "@/lib/analytics";
 
 const districts = [
   "Çankaya",
@@ -38,9 +39,10 @@ export function NewsletterForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setState("sending");
     setMessage("");
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formElement);
 
     try {
       const response = await fetch("/api/subscribers", {
@@ -60,7 +62,11 @@ export function NewsletterForm({
         payload.message ||
           "Kaydınız alındı. İlk bülten hazır olduğunda haber vereceğiz.",
       );
-      event.currentTarget.reset();
+      formElement.reset();
+      captureAnalytics("newsletter_signup_completed", {
+        district_count: selected.length,
+        form_mode: mode,
+      });
       setSelected([]);
     } catch (error) {
       setState("error");

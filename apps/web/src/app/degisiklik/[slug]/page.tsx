@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EventCard } from "@/components/event-card";
+import { TrackedSourceLink } from "@/components/tracked-source-link";
 import {
   categoryLabel,
   formatDate,
@@ -142,14 +143,14 @@ export default async function EventDetailPage({ params }: PageProps) {
               Bu kayıt kaynak belgeye bağlıdır. Karar vermeden önce belgenin
               tamamını inceleyin.
             </p>
-            <a
+            <TrackedSourceLink
               className="button button-primary"
               href={event.source_urls.primary}
-              target="_blank"
-              rel="noreferrer"
+              eventId={event.id}
+              sourceArea="primary"
             >
               Kaynak belgeyi aç ↗
-            </a>
+            </TrackedSourceLink>
             <span className="source-status">
               ✓ {publicationLabel(event.publication_status)}
             </span>
@@ -220,9 +221,13 @@ export default async function EventDetailPage({ params }: PageProps) {
                           {item.page ? ` · Sayfa ${item.page}` : ""}
                         </strong>
                         <p>{item.excerpt || "Kaynak belge kanıtı"}</p>
-                        <a href={item.document_url} target="_blank" rel="noreferrer">
+                        <TrackedSourceLink
+                          href={item.document_url}
+                          eventId={event.id}
+                          sourceArea="evidence"
+                        >
                           Belgede görüntüle ↗
-                        </a>
+                        </TrackedSourceLink>
                       </div>
                     </article>
                   ))}

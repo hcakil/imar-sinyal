@@ -60,7 +60,7 @@ export async function saveSubscriber({
     | string
     | null
     | undefined;
-  const resendKey = process.env.RESEND_API_KEY;
+  const resendKey = process.env.RESEND_API_KEY?.trim();
   const audienceId = process.env.RESEND_AUDIENCE_ID;
   if (!resendContactId && resendKey && audienceId) {
     try {
@@ -116,7 +116,7 @@ export async function deactivateSubscriber(email: string): Promise<boolean> {
     },
     { merge: true },
   );
-  const resendKey = process.env.RESEND_API_KEY;
+  const resendKey = process.env.RESEND_API_KEY?.trim();
   const audienceId = process.env.RESEND_AUDIENCE_ID;
   if (resendKey && audienceId) {
     try {
@@ -139,7 +139,7 @@ export async function deactivateSubscriber(email: string): Promise<boolean> {
 }
 
 export async function sendWelcomeEmail(email: string): Promise<void> {
-  const key = process.env.RESEND_API_KEY;
+  const key = process.env.RESEND_API_KEY?.trim();
   const publicSends = process.env.NEWSLETTER_PUBLIC_SENDS === "true";
   const testRecipient = process.env.RESEND_TEST_RECIPIENT;
   const recipient = publicSends ? email : testRecipient;

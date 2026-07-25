@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { AnalyticsConsent } from "@/components/analytics-consent";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
@@ -52,12 +53,19 @@ export const viewport: Viewport = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const posthogProjectToken = process.env.POSTHOG_PROJECT_TOKEN || "";
+  const posthogHost =
+    process.env.POSTHOG_HOST || "https://us.i.posthog.com";
   return (
     <html lang="tr">
       <body>
         <SiteHeader />
         <main>{children}</main>
-        <SiteFooter />
+        <SiteFooter analyticsEnabled={posthogProjectToken.startsWith("phc_")} />
+        <AnalyticsConsent
+          projectToken={posthogProjectToken}
+          apiHost={posthogHost}
+        />
       </body>
     </html>
   );
