@@ -17,6 +17,8 @@ node_modules
 data
 artifacts
 exports
+temp_pdfs
+**/*.tsbuildinfo
 *.db
 *.sqlite
 *.sqlite3
