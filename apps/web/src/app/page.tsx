@@ -3,10 +3,16 @@ import { EventCard } from "@/components/event-card";
 import { NewsletterForm } from "@/components/newsletter-form";
 import { listEvents } from "@/lib/events";
 
-export const revalidate = 900;
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const events = await listEvents({}, 100);
+  const updatedAt = new Intl.DateTimeFormat("tr-TR", {
+    timeZone: "Europe/Istanbul",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date());
   const featured = [...events]
     .sort((a, b) => b.impact_score - a.impact_score)
     .slice(0, 3);
@@ -54,7 +60,7 @@ export default async function HomePage() {
                 <span className="panel-kicker">CANLI ÖZET</span>
                 <strong>Ankara İmar Nabzı</strong>
               </div>
-              <span className="updated">25 Tem 2026</span>
+              <span className="updated">{updatedAt}</span>
             </div>
             <div className="signal-map">
               <div className="district-shape shape-one">

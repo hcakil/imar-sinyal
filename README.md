@@ -29,7 +29,9 @@ API:
 - `GET /api/events/{slug}`
 - `POST /api/subscribers`
 - `GET|POST /api/unsubscribe`
-- `GET /healthz`
+- `GET /api/healthz` (canlı Cloud Run/Firebase sağlık kontrolü)
+- `GET /healthz` (yerel uygulama rotası; Google Frontend bu yolu rezerve eder)
+- `GET /healthz.json` (Firebase edge sağlık kontrolü)
 
 Tarayıcı Firestore'a doğrudan erişmez. Okuma ve yazma Next.js sunucusu
 üzerindendir; Firestore güvenlik kuralları istemci erişimini kapatır.

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     "Ankara'daki güncel meclis kararları ve imar askılarını ilçe, aşama ve değişiklik türüne göre filtreleyin.",
 };
 
-export const revalidate = 900;
+export const dynamic = "force-dynamic";
 
 export default async function EventsPage() {
   const [events, districts] = await Promise.all([
