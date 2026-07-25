@@ -20,6 +20,7 @@ for template in infra/monitoring/*-policy.json; do
   curl --fail --silent --show-error \
     --request POST \
     --header "Authorization: Bearer ${ACCESS_TOKEN}" \
+    --header "x-goog-user-project: ${PROJECT_ID}" \
     --header "Content-Type: application/json; charset=utf-8" \
     --data-binary "@${rendered}" \
     "https://monitoring.googleapis.com/v3/projects/${PROJECT_ID}/alertPolicies"

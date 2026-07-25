@@ -14,10 +14,10 @@ node_modules
 **/__pycache__
 **/.pytest_cache
 
-data
-artifacts
-exports
-temp_pdfs
+/data/
+/artifacts/
+/exports/
+/temp_pdfs/
 **/*.tsbuildinfo
 *.db
 *.sqlite
