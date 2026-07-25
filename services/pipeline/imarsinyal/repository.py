@@ -293,6 +293,7 @@ class FirestoreRepository(Repository):
             batch.set(
                 latest_ref,
                 {
+                    "source_kind": record.source_kind,
                     "source_type": record.source_type,
                     "external_id": record.external_id,
                     "content_hash": record.content_hash,
@@ -375,7 +376,7 @@ class FirestoreRepository(Repository):
 
     def mark_unseen_aski(self, seen_external_ids: set[str]) -> int:
         unseen = []
-        query = self.db.collection("sources").where("source_type", "==", "abb_aski")
+        query = self.db.collection("sources").where("source_kind", "==", "aski")
         for snapshot in query.stream():
             data = snapshot.to_dict()
             if data.get("active") and data.get("external_id") not in seen_external_ids:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import re
 from datetime import datetime, timezone
@@ -106,11 +107,20 @@ def _bbox_and_centroid(geometry: dict[str, Any] | None) -> dict[str, Any] | None
             points.extend((float(pair[0]), float(pair[1])) for pair in path)
     elif "x" in geometry and "y" in geometry:
         points.append((float(geometry["x"]), float(geometry["y"])))
+    serialized_geometry = json.dumps(
+        geometry,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
     if not points:
-        return {"geojson": geometry}
+        return {"arcgis_json": serialized_geometry}
     xs, ys = zip(*points)
     return {
-        "geojson": geometry,
+        # Firestore does not allow arrays directly nested in arrays. ArcGIS
+        # polygon rings have that shape, so retain the complete source geometry
+        # as lossless JSON while keeping bbox/centroid directly queryable.
+        "arcgis_json": serialized_geometry,
         "bbox": [
             round(min(xs), 6),
             round(min(ys), 6),
