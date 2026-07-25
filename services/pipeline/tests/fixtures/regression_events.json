@@ -1,0 +1,13 @@
+[
+  {"id":"B6E5ADA7-EE09-40E8-9B22-9176387034DB","source_type":"NIP","district":"Beypazarı","neighborhood":"Ayvaşık","parcels":["404/1"],"scale":"1/5000"},
+  {"id":"71251D75-81C4-4EE2-B1E6-6B8439A9CEA5","source_type":"NIP","district":"Yenimahalle","neighborhood":"Yuva","parcels":["166/36"],"scale":"1/5000","density":"121–250 kişi/ha"},
+  {"id":"B245194C-772F-44C6-BFDB-F0F03847605C","source_type":"NIP","district":"Sincan","neighborhood":"Malıköy","parcels":[],"scale":"1/5000"},
+  {"id":"CE77B50C-D4A8-43B1-8B06-C9D622162854","source_type":"UIP","district":"Mamak","neighborhood":null,"parcels":[],"scale":"1/1000"},
+  {"id":"F1EDFC28-A89A-4B36-A491-C67FAE86C909","source_type":"NIP","district":"Haymana","neighborhood":"Karahoca","parcels":["103/85"],"scale":"1/5000"},
+  {"id":"96742291-CA36-4E38-AB37-2E592AAC73F7","source_type":"NIP","district":"Polatlı","neighborhood":"Basri","parcels":["108/1","109/1"],"scale":"1/5000"},
+  {"id":"8BDA90D1-21DE-4BBB-B30B-616635A8855D","source_type":"UIP","district":"Çankaya","neighborhood":"Korkutreis","parcels":["1154/25"],"scale":"1/1000","taks":"0.60"},
+  {"id":"2F2EC949-BF11-4E2D-A78B-2EA5FC29D009","source_type":"UIP","district":"Çankaya","neighborhood":"Beytepe","parcels":["28517/2"],"scale":"1/1000"},
+  {"id":"53C330C4-8F54-43C3-A04A-7112BF996286","source_type":"NIP","district":"Çankaya","neighborhood":"Beytepe","parcels":["28517/2"],"scale":"1/5000"},
+  {"id":"CDC99CFB-1CA1-42C4-B337-53A2EB26EC40","source_type":"NIP25","district":"Çankaya","neighborhood":"Alacaatlı","parcels":["60912/1"],"scale":"1/25000"},
+  {"id":"1C96952B-51B6-4E21-8AF5-B865D9CF3B38","source_type":"NIP","district":"Çankaya","neighborhood":"Alacaatlı","parcels":["60912/1"],"scale":"1/5000","density":"51–120 kişi/ha"}
+]

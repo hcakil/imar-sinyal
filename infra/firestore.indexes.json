@@ -1,0 +1,33 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "planning_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "publication_status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "event_date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "planning_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "district",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "event_date",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

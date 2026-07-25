@@ -1,0 +1,23 @@
+{
+  "displayName": "İmarSinyal — gece job hatası",
+  "combiner": "OR",
+  "enabled": true,
+  "notificationChannels": ["__NOTIFICATION_CHANNEL__"],
+  "conditions": [
+    {
+      "displayName": "imarsinyal-nightly başarısız execution",
+      "conditionThreshold": {
+        "filter": "resource.type = \"cloud_run_job\" AND metric.type = \"run.googleapis.com/job/completed_execution_count\" AND metric.labels.result = \"failed\" AND resource.labels.job_name = \"imarsinyal-nightly\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "300s",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ]
+      }
+    }
+  ]
+}

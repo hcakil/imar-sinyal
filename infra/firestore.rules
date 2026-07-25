@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // The application reads and writes through trusted Cloud Run service
+    // accounts. Browser SDK access is deliberately disabled for the MVP.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

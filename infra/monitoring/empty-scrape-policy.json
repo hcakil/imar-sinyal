@@ -1,0 +1,23 @@
+{
+  "displayName": "İmarSinyal — üç ardışık boş scrape",
+  "combiner": "OR",
+  "enabled": true,
+  "notificationChannels": ["__NOTIFICATION_CHANNEL__"],
+  "conditions": [
+    {
+      "displayName": "Boş scrape streak log metriği",
+      "conditionThreshold": {
+        "filter": "resource.type = \"cloud_run_job\" AND metric.type = \"logging.googleapis.com/user/imarsinyal_empty_scrape_streak\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "300s",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ]
+      }
+    }
+  ]
+}

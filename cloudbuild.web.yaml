@@ -1,0 +1,42 @@
+substitutions:
+  _REGION: europe-west1
+  _SERVICE: imarsinyal-web
+  _CONTACT_EMAIL: iletisim@example.com
+  _TEST_RECIPIENT: owner@example.com
+  _DATA_CONTROLLER_NAME: İmarSinyal Ankara işletmecisi
+  _RESEND_AUDIENCE_ID: disabled
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - apps/web/Dockerfile
+      - --tag
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/imarsinyal/web:${BUILD_ID}
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/imarsinyal/web:${BUILD_ID}
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/imarsinyal/web:${BUILD_ID}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --min-instances=0
+      - --max-instances=2
+      - --concurrency=40
+      - --memory=512Mi
+      - --cpu=1
+      - --service-account=imarsinyal-runtime@${PROJECT_ID}.iam.gserviceaccount.com
+      - --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},ALLOW_SEED_FALLBACK=false,NEWSLETTER_PUBLIC_SENDS=false,CONTACT_EMAIL=${_CONTACT_EMAIL},DATA_CONTROLLER_NAME=${_DATA_CONTROLLER_NAME},RESEND_TEST_RECIPIENT=${_TEST_RECIPIENT},RESEND_AUDIENCE_ID=${_RESEND_AUDIENCE_ID}
+      - --set-secrets=RESEND_API_KEY=resend-api-key:latest,UNSUBSCRIBE_SECRET=unsubscribe-secret:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/imarsinyal/web:${BUILD_ID}

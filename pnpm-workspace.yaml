@@ -1,0 +1,16 @@
+packages:
+  - "apps/*"
+onlyBuiltDependencies:
+  - "@firebase/util"
+  - "esbuild"
+  - "protobufjs"
+  - "sharp"
+allowBuilds:
+  "@firebase/util": true
+  esbuild: true
+  protobufjs: true
+  sharp: true
+overrides:
+  postcss: 8.5.18
+  sharp: 0.35.0
+  uuid: 11.1.1

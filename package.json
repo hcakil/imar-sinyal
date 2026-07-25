@@ -1,0 +1,11 @@
+{
+  "name": "imarsinyal-ankara",
+  "private": true,
+  "packageManager": "pnpm@10.13.1",
+  "scripts": {
+    "dev": "pnpm --filter @imarsinyal/web dev",
+    "build": "pnpm --filter @imarsinyal/web build",
+    "lint": "pnpm --filter @imarsinyal/web lint",
+    "test": "pnpm --filter @imarsinyal/web test"
+  }
+}

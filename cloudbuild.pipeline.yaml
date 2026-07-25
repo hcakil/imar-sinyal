@@ -1,0 +1,59 @@
+substitutions:
+  _REGION: europe-west1
+  _JOB: imarsinyal-nightly
+  _NEWSLETTER_JOB: imarsinyal-newsletter
+  _SITE_URL: https://example.web.app
+  _TEST_RECIPIENT: owner@example.com
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - services/pipeline/Dockerfile
+      - --tag
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/imarsinyal/pipeline:${BUILD_ID}
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/imarsinyal/pipeline:${BUILD_ID}
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - deploy
+      - ${_JOB}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/imarsinyal/pipeline:${BUILD_ID}
+      - --region=${_REGION}
+      - --tasks=1
+      - --max-retries=1
+      - --task-timeout=3600s
+      - --cpu=2
+      - --memory=2Gi
+      - --service-account=imarsinyal-runtime@${PROJECT_ID}.iam.gserviceaccount.com
+      - --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},DATA_BACKEND=firestore,EVIDENCE_BUCKET=${PROJECT_ID}-imarsinyal-evidence
+      - --set-secrets=GEMINI_API_KEY=gemini-api-key:latest
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - deploy
+      - ${_NEWSLETTER_JOB}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/imarsinyal/pipeline:${BUILD_ID}
+      - --region=${_REGION}
+      - --tasks=1
+      - --max-retries=1
+      - --task-timeout=900s
+      - --cpu=1
+      - --memory=512Mi
+      - --command=python
+      - --args=-m,imarsinyal.cli,newsletter
+      - --service-account=imarsinyal-runtime@${PROJECT_ID}.iam.gserviceaccount.com
+      - --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},DATA_BACKEND=firestore,NEWSLETTER_PUBLIC_SENDS=false,NEWSLETTER_TEST_RECIPIENT=${_TEST_RECIPIENT},SITE_URL=${_SITE_URL}
+      - --set-secrets=RESEND_API_KEY=resend-api-key:latest,UNSUBSCRIBE_SECRET=unsubscribe-secret:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/imarsinyal/pipeline:${BUILD_ID}
