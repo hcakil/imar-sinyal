@@ -1,0 +1,16 @@
+{
+  "thresholdRules": [
+    {
+      "spendBasis": "CURRENT_SPEND",
+      "thresholdPercent": 0.2
+    },
+    {
+      "spendBasis": "CURRENT_SPEND",
+      "thresholdPercent": 0.5
+    },
+    {
+      "spendBasis": "CURRENT_SPEND",
+      "thresholdPercent": 1.0
+    }
+  ]
+}

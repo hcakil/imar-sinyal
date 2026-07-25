@@ -2,12 +2,13 @@
 set -euo pipefail
 
 PROJECT_ID="${1:-}"
+INCLUDE_NEWSLETTER="${2:-false}"
 REGION="europe-west1"
 SCHEDULER_SA="imarsinyal-scheduler@${PROJECT_ID}.iam.gserviceaccount.com"
 API_ROOT="https://${REGION}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${PROJECT_ID}/jobs"
 
 if [[ -z "${PROJECT_ID}" ]]; then
-  echo "Kullanım: ./infra/configure-schedulers.sh FIREBASE_PROJECT_ID"
+  echo "Kullanım: ./infra/configure-schedulers.sh FIREBASE_PROJECT_ID [true]"
   exit 2
 fi
 
@@ -36,6 +37,10 @@ upsert_scheduler() {
 
 gcloud config set project "${PROJECT_ID}"
 upsert_scheduler imarsinyal-nightly-trigger "15 3 * * *" imarsinyal-nightly
-upsert_scheduler imarsinyal-newsletter-trigger "30 8 * * 1" imarsinyal-newsletter
 
-echo "Gece taraması 03:15, haftalık bülten Pazartesi 08:30 için ayarlandı."
+if [[ "${INCLUDE_NEWSLETTER}" == "true" ]]; then
+  upsert_scheduler imarsinyal-newsletter-trigger "30 8 * * 1" imarsinyal-newsletter
+  echo "Gece taraması 03:15, haftalık bülten Pazartesi 08:30 için ayarlandı."
+else
+  echo "Gece taraması 03:15 için ayarlandı; bülten scheduler'ı Resend etkinleştirilene kadar kurulmadı."
+fi

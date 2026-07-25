@@ -158,7 +158,9 @@ Resend'de `İmarSinyal Bülteni` adlı bir Audience oluşturup kimliğini not ed
 Bu kimlik gizli anahtar değildir; web build'indeki `_RESEND_AUDIENCE_ID`
 değeridir.
 
-9. Web image'ını oluşturup Cloud Run'a dağıtın:
+9. Web image'ını oluşturup Cloud Run'a dağıtın. Resend API anahtarı henüz
+   eklenmemişse site ve abonelik kaydı yine çalışır; Resend kişi eşitlemesi
+   anahtar etkinleştirildikten sonra başlar:
 
 ```bash
 gcloud builds submit \
@@ -166,23 +168,19 @@ gcloud builds submit \
   --substitutions=_CONTACT_EMAIL=GERCEK_ILETISIM_EPOSTASI,_DATA_CONTROLLER_NAME=VERI_SORUMLUSU_ADI,_TEST_RECIPIENT=RESEND_HESAP_EPOSTASI,_RESEND_AUDIENCE_ID=RESEND_AUDIENCE_ID
 ```
 
-10. Pipeline ve bülten job'larını dağıtın. İlk URL, Firebase varsayılan Hosting
-    URL'niz olabilir:
+10. Gece pipeline job'ını dağıtın:
 
 ```bash
-gcloud builds submit \
-  --config cloudbuild.pipeline.yaml \
-  --substitutions=_SITE_URL=https://FIREBASE_PROJECT_ID.web.app,_TEST_RECIPIENT=RESEND_HESAP_EPOSTASI
+gcloud builds submit --config cloudbuild.pipeline.yaml
 ```
 
-11. Gece ve haftalık zamanlayıcıları kurun:
+11. Gece zamanlayıcısını kurun:
 
 ```bash
 ./infra/configure-schedulers.sh FIREBASE_PROJECT_ID
 ```
 
 - Gece taraması: her gün `03:15 Europe/Istanbul`
-- Bülten: pazartesi `08:30 Europe/Istanbul`
 
 12. Firestore kuralları, indexler ve Hosting yönlendirmesini dağıtın:
 
@@ -203,6 +201,25 @@ Cloud Run web servisi `min-instances=0`, `max-instances=2` olarak; gece job'ı
 tek task, 2 vCPU, 2 GiB, 60 dakika ve bir retry ile yapılandırılmıştır.
 
 ## Bülten güvenlik anahtarı
+
+Resend API anahtarı Secret Manager'a eklendikten sonra web servisinde kişi
+eşitlemesini açın:
+
+```bash
+gcloud run services update imarsinyal-web \
+  --region=europe-west1 \
+  --update-secrets=RESEND_API_KEY=resend-api-key:latest
+```
+
+Ardından test bülteni job'ını ve haftalık scheduler'ı dağıtın:
+
+```bash
+gcloud builds submit \
+  --config cloudbuild.newsletter.yaml \
+  --substitutions=_SITE_URL=https://FIREBASE_PROJECT_ID.web.app,_TEST_RECIPIENT=RESEND_HESAP_EPOSTASI
+
+./infra/configure-schedulers.sh FIREBASE_PROJECT_ID true
+```
 
 Varsayılan dağıtımda `NEWSLETTER_PUBLIC_SENDS=false` kalır. Kayıt olan gerçek
 kişiye e-posta gönderilmez; yalnızca `_TEST_RECIPIENT` olarak verilen Resend

@@ -58,9 +58,11 @@ gcloud storage buckets add-iam-policy-binding \
 
 PROJECT_NUMBER="$(gcloud projects describe "${PROJECT_ID}" --format='value(projectNumber)')"
 CLOUD_BUILD_SA="$(
-  gcloud builds get-default-service-account 2>/dev/null ||
+  gcloud builds get-default-service-account \
+    --format='value(serviceAccountEmail)' 2>/dev/null ||
     echo "${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
 )"
+CLOUD_BUILD_SA="${CLOUD_BUILD_SA##*/}"
 for role in roles/run.admin roles/artifactregistry.writer roles/iam.serviceAccountUser; do
   gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
     --member="serviceAccount:${CLOUD_BUILD_SA}" \

@@ -36,7 +36,7 @@ steps:
       - --cpu=1
       - --service-account=imarsinyal-runtime@${PROJECT_ID}.iam.gserviceaccount.com
       - --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},ALLOW_SEED_FALLBACK=false,NEWSLETTER_PUBLIC_SENDS=false,CONTACT_EMAIL=${_CONTACT_EMAIL},DATA_CONTROLLER_NAME=${_DATA_CONTROLLER_NAME},RESEND_TEST_RECIPIENT=${_TEST_RECIPIENT},RESEND_AUDIENCE_ID=${_RESEND_AUDIENCE_ID}
-      - --set-secrets=RESEND_API_KEY=resend-api-key:latest,UNSUBSCRIBE_SECRET=unsubscribe-secret:latest
+      - --set-secrets=UNSUBSCRIBE_SECRET=unsubscribe-secret:latest
 
 images:
   - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/imarsinyal/web:${BUILD_ID}
