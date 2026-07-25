@@ -11,6 +11,8 @@ function matches(event: PlanningEvent, filters: EventFilters): boolean {
   if (filters.stage && event.stage !== filters.stage) return false;
   if (filters.category && !event.categories.includes(filters.category)) return false;
   if (filters.minImpact && event.impact_score < filters.minImpact) return false;
+  if (filters.fromDate && event.event_date < filters.fromDate) return false;
+  if (filters.toDate && event.event_date > filters.toDate) return false;
   if (filters.query) {
     const haystack = [
       event.title,

@@ -25,8 +25,16 @@ const querySchema = z.object({
     .optional(),
   q: z.string().trim().max(120).optional(),
   minImpact: z.coerce.number().int().min(0).max(100).optional(),
+  fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(30),
-});
+}).refine(
+  (value) => !value.fromDate || !value.toDate || value.fromDate <= value.toDate,
+  {
+    message: "Başlangıç tarihi bitiş tarihinden sonra olamaz.",
+    path: ["fromDate"],
+  },
+);
 
 export async function GET(request: NextRequest) {
   const parsed = querySchema.safeParse(

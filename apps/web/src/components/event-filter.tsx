@@ -15,6 +15,8 @@ export function EventFilter({
   const [district, setDistrict] = useState("");
   const [stage, setStage] = useState("");
   const [category, setCategory] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [highImpact, setHighImpact] = useState(false);
 
   const filtered = useMemo(() => {
@@ -28,6 +30,8 @@ export function EventFilter({
       )
         return false;
       if (highImpact && event.impact_score < 70) return false;
+      if (fromDate && event.event_date < fromDate) return false;
+      if (toDate && event.event_date > toDate) return false;
       if (normalizedQuery) {
         const text = [
           event.title,
@@ -43,7 +47,7 @@ export function EventFilter({
       }
       return true;
     });
-  }, [category, district, events, highImpact, query, stage]);
+  }, [category, district, events, fromDate, highImpact, query, stage, toDate]);
 
   return (
     <>
@@ -88,6 +92,24 @@ export function EventFilter({
             <option value="public_infrastructure">Kamu / altyapı</option>
             <option value="procedural">Prosedürel</option>
           </select>
+        </label>
+        <label>
+          <span>Başlangıç</span>
+          <input
+            type="date"
+            value={fromDate}
+            max={toDate || undefined}
+            onChange={(event) => setFromDate(event.target.value)}
+          />
+        </label>
+        <label>
+          <span>Bitiş</span>
+          <input
+            type="date"
+            value={toDate}
+            min={fromDate || undefined}
+            onChange={(event) => setToDate(event.target.value)}
+          />
         </label>
         <label className="impact-toggle">
           <input

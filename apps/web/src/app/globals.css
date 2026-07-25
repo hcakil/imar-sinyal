@@ -988,7 +988,7 @@ p {
 .filter-panel {
   display: grid;
   align-items: flex-end;
-  grid-template-columns: 1.7fr repeat(3, 1fr) auto;
+  grid-template-columns: minmax(230px, 1.7fr) repeat(5, minmax(130px, 1fr)) auto;
   gap: 10px;
   padding: 14px;
   border: 1px solid var(--line);
@@ -1021,6 +1021,10 @@ p {
 }
 
 .filter-panel select {
+  padding: 0 10px;
+}
+
+.filter-panel label:not(.search-field) input {
   padding: 0 10px;
 }
 

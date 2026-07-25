@@ -81,4 +81,6 @@ export interface EventFilters {
   category?: ChangeCategory | "";
   query?: string;
   minImpact?: number;
+  fromDate?: string;
+  toDate?: string;
 }
