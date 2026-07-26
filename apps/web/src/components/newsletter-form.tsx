@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import posthog from "posthog-js";
 import { captureAnalytics } from "@/lib/analytics";
 
 const districts = [
@@ -44,10 +45,28 @@ export function NewsletterForm({
     setMessage("");
     const form = new FormData(formElement);
 
+    captureAnalytics("newsletter_signup_started", {
+      district_count: selected.length,
+      form_mode: mode,
+    });
+
+    const posthogDistinctId =
+      posthog.__loaded && !posthog.has_opted_out_capturing()
+        ? posthog.get_distinct_id()
+        : null;
+    const posthogSessionId =
+      posthog.__loaded && !posthog.has_opted_out_capturing()
+        ? posthog.get_session_id()
+        : null;
+
+    const extraHeaders: Record<string, string> = {};
+    if (posthogDistinctId) extraHeaders["X-PostHog-Distinct-Id"] = posthogDistinctId;
+    if (posthogSessionId) extraHeaders["X-PostHog-Session-Id"] = posthogSessionId;
+
     try {
       const response = await fetch("/api/subscribers", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...extraHeaders },
         body: JSON.stringify({
           email: form.get("email"),
           districts: selected,
@@ -70,9 +89,12 @@ export function NewsletterForm({
       setSelected([]);
     } catch (error) {
       setState("error");
-      setMessage(
-        error instanceof Error ? error.message : "Beklenmeyen bir hata oluştu.",
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : "Beklenmeyen bir hata oluştu.";
+      setMessage(errorMessage);
+      captureAnalytics("newsletter_signup_failed", {
+        form_mode: mode,
+      });
     }
   }
 

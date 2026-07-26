@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { allowRequest } from "@/lib/rate-limit";
 import { saveSubscriber, sendWelcomeEmail } from "@/lib/subscribers";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 const subscriberSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -54,6 +55,23 @@ export async function POST(request: NextRequest) {
     await sendWelcomeEmail(parsed.data.email);
   } catch (error) {
     console.error("welcome_email_failed", error);
+  }
+
+  const posthog = getPostHogClient();
+  if (posthog) {
+    const distinctId =
+      request.headers.get("X-PostHog-Distinct-Id") ||
+      `subscriber:${rateKey}`;
+    posthog.capture({
+      distinctId,
+      event: "newsletter_subscribed",
+      properties: {
+        district_count: parsed.data.districts.length,
+        is_existing: result.existing,
+        $session_id: request.headers.get("X-PostHog-Session-Id") || undefined,
+      },
+    });
+    await posthog.flush();
   }
 
   return NextResponse.json(

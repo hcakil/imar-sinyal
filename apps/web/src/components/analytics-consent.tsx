@@ -21,20 +21,6 @@ export function AnalyticsConsent({
 
   useEffect(() => {
     if (!enabled) return;
-    if (!posthog.__loaded) {
-      posthog.init(projectToken, {
-        api_host: apiHost,
-        defaults: "2026-05-30",
-        autocapture: false,
-        capture_pageview: false,
-        capture_pageleave: true,
-        disable_session_recording: true,
-        opt_out_capturing_by_default: true,
-        person_profiles: "never",
-        persistence: "localStorage",
-        respect_dnt: true,
-      });
-    }
     const preference = window.localStorage.getItem(preferenceKey);
     if (preference === "accepted") {
       posthog.opt_in_capturing();
