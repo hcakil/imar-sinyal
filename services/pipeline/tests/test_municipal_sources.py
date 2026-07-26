@@ -161,8 +161,12 @@ class MunicipalSourceTests(unittest.TestCase):
         self.assertNotIn("86230/1", record.parcels)
         self.assertEqual(record.decision_number, "1338/1482")
         self.assertEqual(
-            record.documents["plan_note"].url,
+            record.documents["attachment"].url,
             "https://www.mamak.bel.tr/uploads/durum-haritasi.pdf",
+        )
+        self.assertEqual(
+            record.documents["primary"].url,
+            record.documents["source_page"].url,
         )
 
 

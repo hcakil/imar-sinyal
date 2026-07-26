@@ -154,6 +154,7 @@ def _record(
     detail_url: str,
     detail_text: str,
     attachment_url: str | None,
+    prefer_source_text: bool = False,
 ) -> SourceRecord:
     start, end = _appeal_dates(detail_text)
     documents = {
@@ -163,10 +164,15 @@ def _record(
         )
     }
     if attachment_url:
-        documents["plan_note"] = SourceDocument(
+        attachment = SourceDocument(
             url=attachment_url,
             media_type=_media_type(attachment_url),
         )
+        if prefer_source_text:
+            documents["attachment"] = attachment
+            documents["primary"] = documents["source_page"]
+        else:
+            documents["plan_note"] = attachment
     else:
         documents["primary"] = documents["source_page"]
 
@@ -388,6 +394,7 @@ def parse_mamak_detail(
         detail_url=detail_url,
         detail_text=detail_text,
         attachment_url=attachment,
+        prefer_source_text=True,
     )
 
 

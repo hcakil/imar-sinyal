@@ -125,7 +125,8 @@ flowchart TB
   Yapı Kontrol ilanları dışarıda bırakılır. Aynı dosyaya giden İndir/Görüntüle
   bağlantıları tek belge sayılır ve PDF'deki askı/karar metadatası deterministik
   okunur. Mamak'ta ilan sayfasındaki metin, kesin askı tarihleri ve bağlı durum
-  haritası birlikte alınır.
+  haritası birlikte alınır. Mamak'ın eski dosya sunucusu erişilemez olsa bile
+  resmî HTML metni ana kanıt olarak işlenir ve gece job'ı bekletilmez.
 - DOCX metni, tabloları ve üstü çizili run'ları deterministik okunur.
 - PDF'nin tüm sayfaları ucuz metin/çizim taramasından geçer; en ilgili en fazla
   12 sayfa Vision'a gider.
