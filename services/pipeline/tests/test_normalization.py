@@ -53,6 +53,16 @@ class MetricGuardTests(unittest.TestCase):
             ],
         )
 
+    def test_multi_ada_ranges_expand_without_plan_number_false_positive(self) -> None:
+        text = (
+            "40455 Ada 1 ila 3, 40456 Ada 2 ve 4 sayılı parseller ile "
+            "86230/1 NPP ve 3629/16 nolu parselasyon planı"
+        )
+        self.assertEqual(
+            normalize_parcels(text),
+            ["40455/1", "40455/2", "40455/3", "40456/2", "40456/4"],
+        )
+
     def test_yuva_density_never_becomes_emsal(self) -> None:
         change = ExtractedChange(
             emsal=MetricChange(

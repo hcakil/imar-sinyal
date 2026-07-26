@@ -55,16 +55,17 @@ başlatılmamıştır.
 | Hafta 4 — sınıflandırma ve etki | Tamamlandı | Deterministik kategori/etki ve kanıt korumaları var |
 | Hafta 5 — harita | Bilinçli ertelendi | MVP kapsamı dışında |
 | Hafta 6 — hesap/takip listesi | Bilinçli ertelendi | MVP kapsamı dışında |
-| Hafta 7 — e-posta | Kısmen tamamlandı | Test bülteni ve zamanlayıcı hazır; gerçek gönderim domain doğrulamasını bekliyor |
+| Hafta 7 — e-posta | Teknik olarak tamamlandı, kontrollü kapalı | Resend domain/segment, kayıt-unsubscribe ve test gönderimi çalışıyor; toplu gönderim lansman kararını bekliyor |
 | Hafta 8 — ödeme | Başlamadı | Kullanım sinyali görülmeden açılmayacak |
 | Hafta 9 — bülten lansmanı | Hazır, yayın bekliyor | Pazartesi 08:30 job'u kurulu |
 | Hafta 10 — doğrudan erişim | Başlamadı | Domain ve ilk kaynak kalite kontrolünden sonra |
 | Hafta 11 — ücretli dönüşüm | Başlamadı | En erken kullanım davranışı oluştuktan sonra |
 | Hafta 12 — go/no-go | Başlamadı | Abone, geri dönüş ve talep metrikleriyle yapılacak |
 
-Kronolojik olarak “7. haftadayız” demek yanıltıcı olur: 5 ve 6. haftalar MVP
-kararıyla ertelendi, 7 ve 9. haftanın altyapısı öne alındı. Doğru ürün tanımı
-**Hafta 4 tamamlandı + lansman kapısı bekleniyor** şeklindedir.
+Kronolojik olarak “7. haftadayız” demek yanıltıcı olur: 5. hafta haritası
+ertelendi, 6. haftadaki kişisel takip henüz yapılmadı; 7 ve 9. haftanın
+altyapısı ise öne alındı. Doğru ürün tanımı **Hafta 4 tamamlandı + e-posta
+altyapısı hazır + kaynak kapsaması/lansman kalite kapısı** şeklindedir.
 
 ## Sistem akışı
 
@@ -76,6 +77,8 @@ flowchart LR
     B["ABB meclis<br/>kararları · DOCX/PDF"] --> S
     P["Polatlı Belediyesi<br/>ilan + PDF"] --> S
     K["Keçiören Belediyesi<br/>ilan + PDF/JPG"] --> S
+    C["Çankaya Belediyesi<br/>imar ilanı + PDF"] --> S
+    MM["Mamak Belediyesi<br/>ilan metni + PDF"] --> S
     S --> H["Snapshot + SHA-256<br/>idempotent değişiklik tespiti"]
     H --> N["Deterministik normalizasyon<br/>ilçe · mahalle · ada/parsel · ölçek"]
     N --> D{"Belge türü"}
@@ -112,13 +115,17 @@ flowchart TB
     MON["Cloud Monitoring"] -. hata/boş scrape .-> CJ
 ```
 
-- UIP, NIP, NIP25, CDP, Polatlı ve Keçiören kaynakları bağımsız çekilir; bir
-  kaynağın hatası diğerlerini durdurmaz.
+- UIP, NIP, NIP25, CDP, Polatlı, Keçiören, Çankaya ve Mamak kaynakları
+  bağımsız çekilir; bir kaynağın hatası diğerlerini durdurmaz.
 - Geometri WGS84 olarak alınır; bbox ve centroid saklanır.
 - Yeni, değişmiş, aynı kalan ve kaynaktan düşen snapshot'lar ayrılır.
 - Meclis kararları 1 Ocak 2026'ya kadar geriye doldurulabilir.
 - Polatlı ilan metni ve bağlı PDF; Keçiören ilan metni ve bağlı PDF/JPG birlikte
-  saklanır. İlçe kaynağında varsayılan başlangıç kesimi 1 Ocak 2026'dır.
+  saklanır. Çankaya'da yalnızca **İmar İlanları** tablosu alınır; bitişikteki
+  Yapı Kontrol ilanları dışarıda bırakılır. Aynı dosyaya giden İndir/Görüntüle
+  bağlantıları tek belge sayılır ve PDF'deki askı/karar metadatası deterministik
+  okunur. Mamak'ta ilan sayfasındaki metin, kesin askı tarihleri ve bağlı durum
+  haritası birlikte alınır.
 - DOCX metni, tabloları ve üstü çizili run'ları deterministik okunur.
 - PDF'nin tüm sayfaları ucuz metin/çizim taramasından geçer; en ilgili en fazla
   12 sayfa Vision'a gider.
@@ -190,6 +197,13 @@ Geçmiş veri kalite bakımında 197 olayın parsel alanı, 59 olayın aynı
 eski/yeni metrikleri ve etki puanı sürümlü olarak düzeltildi; iki bakım
 komutunun da ikinci geçişi sıfır değişiklik üretti.
 
+26 Temmuz 2026'da eklenen ilçe adaptörlerinin salt-okunur canlı kontrolünde
+Çankaya'dan 6 imar ilanı, Mamak'tan 1 güncel askı ilanı hatasız normalize
+edildi. Kırkkonaklar 26374/5 kaydı Çankaya PDF'sindeki ABB 384 numaralı karar
+ve askı tarihleriyle; Mamak 86230/1 NPP ilanı ise 198 gerçek ada/parsel,
+1338/1482 numaralı ABB Encümen kararı ve kesin askı aralığıyla okundu.
+`86230/1 NPP` gibi plan dosya numaralarının ada/parsel sanılması engellendi.
+
 Eski kayıtların parsel alanlarını yeni deterministik kurallarla kontrol etmek
 için bakım komutu önce salt-okunur çalıştırılır, örnekler incelendikten sonra
 `--apply` ile yazılır. Yazılan her düzeltme `change_versions` koleksiyonunda
@@ -240,7 +254,8 @@ gcloud secrets versions add unsubscribe-secret --data-file=-
 `unsubscribe-secret` için en az 32 rastgele byte kullanın. Anahtarları Git'e,
 issue'ya veya mesaja koymayın.
 
-Resend'de `İmarSinyal Bülteni` adlı bir Segment oluşturup kimliğini not edin.
+Resend'de bülten kişilerinin tutulacağı bir Segment oluşturup kimliğini not
+edin.
 Bu kimlik gizli anahtar değildir; web build'indeki `_RESEND_SEGMENT_ID`
 değeridir. Kayıt olan kişi global kişi listesine eklenir ve bu segmente
 iliştirilir.
@@ -347,29 +362,39 @@ değiştirebilir.
 
 Firebase Hosting tarafında `imarsinyal.com` ana domaini ve
 `www.imarsinyal.com → imarsinyal.com` kalıcı yönlendirmesi oluşturulmuştur.
-Natro DNS'te şu değişiklikler yapılmalıdır:
+Natro DNS'te kullanılan web kayıtları:
 
-| İşlem | Tür | Ad/host | Değer |
-|---|---|---|---|
-| Sil | A | `@` | `85.159.66.93` |
-| Ekle | A | `@` | `199.36.158.100` |
-| Ekle | TXT | `@` | `hosting-site=imar-sinyal` |
-| Sil | CNAME | `www` | `redirect.natrocdn.com` |
-| Ekle | CNAME | `www` | `imar-sinyal.web.app` |
+| Tür | Ad/host | Değer |
+|---|---|---|
+| A | `@` | `199.36.158.100` |
+| TXT | `@` | `hosting-site=imar-sinyal` |
+| CNAME | `www` | `imar-sinyal.web.app` |
 
-Natro e-posta hizmetinin mevcut SPF TXT kaydı silinmemelidir. DNS yayıldıktan
-sonra Firebase alan sahipliğini doğrular, TLS sertifikasını üretir ve `www`
-trafiğini ana domaine yönlendirir.
+Natro e-posta hizmetinin mevcut SPF TXT kaydı silinmemelidir. Firebase alan
+sahipliği ve TLS kurulumu tamamlanmıştır. Resend için DKIM, `send` alt alanı
+SPF/MX ve DMARC kayıtları ayrıca eklenmiş; `imarsinyal.com` gönderim alanı
+doğrulanmıştır. Toplu gönderim bilinçli olarak
+`NEWSLETTER_PUBLIC_SENDS=false` ile kapalıdır; açılmadan önce ilk bülten
+içeriği ve alıcı listesi kontrol edilir.
 
-Resend hesabındaki ücretsiz plan bugün tek domain hakkını başka bir domain için
-kullandığından `imarsinyal.com` ekleme isteği reddedilmektedir. Mevcut domain
-silinmeden şu iki güvenli seçenekten biri seçilmelidir:
+## Sıradaki ürün dilimi
 
-1. Resend planını birden fazla domain destekleyen seviyeye yükseltmek.
-2. İmarSinyal için ayrı bir Resend hesabı/API anahtarı kullanmak.
+Kaynak kapsaması kalite kontrolünden sonra en yüksek öncelik **ada/parsel takip
+listesi**dir. Bu, ertelenen 6. haftanın daraltılmış sürümü olarak ele alınır:
 
-Resend doğrulaması tamamlanana kadar `NEWSLETTER_PUBLIC_SENDS=false` kalır;
-gerçek abonelere gönderim yapılmaz.
+1. Kayıt anahtarı `il/ilçe/mahalle/ada/parsel` olur; yalnızca `ada/parsel`
+   kullanılmaz.
+2. Bir kararın parseli **kesin etkilediği**, **yakınında olduğu**, yalnızca
+   **metinde geçtiği** veya sadece **bölgesel sinyal** olduğu ayrı etiketlenir.
+3. “Kesin etkiliyor” alarmı için resmî plan geometrisi ile parsel geometrisinin
+   kesişmesi ya da aynı resmî belgede açık ada/parsel kanıtı gerekir.
+4. İlk sürüm e-posta alarmıdır; harita, ödeme, WhatsApp ve SMS daha sonra gelir.
+
+Fiyat/değerleme ayrı bir deneydir. Ülke çapında otomatik fiyat iddiası yerine
+tek bir küçük bölgede emlakçıyla doğrulanmış gözlem defteri denenebilir:
+ilan fiyatı ve gerçekleşen fiyat, tarih, m², tek tapu/hisse, yol-cephesi,
+imar durumu ve veri güveni ayrı tutulur. En az 20–30 güvenilir gözlem oluşmadan
+bu veri ürün ekranında “değerleme” olarak yayımlanmaz.
 
 ## İzleme
 
@@ -395,8 +420,8 @@ notification channel'ı olarak eklenir.
 ## Şimdilik yapılmayacaklar
 
 - Ücretli reklam
-- Kullanıcı hesabı, ödeme ve Pro paket
-- Harita ve kişisel alarm
+- Ödeme ve Pro paket
+- Harita
 - WhatsApp/SMS
 - Tüm Türkiye'ye açılma
 

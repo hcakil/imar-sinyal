@@ -6,6 +6,7 @@ import re
 from datetime import date, datetime, timedelta
 from urllib.parse import urljoin, urlparse
 
+import fitz
 import requests
 from bs4 import BeautifulSoup
 
@@ -24,6 +25,8 @@ POLATLI_LIST_URL = "https://www.polatli.bel.tr/imarplanlari"
 KECIOREN_LIST_URL = (
     "https://www.kecioren.bel.tr/imar-parselasyon-duyurularimiz.html"
 )
+CANKAYA_LIST_URL = "https://www.cankaya.bel.tr/arsivler/askidaki-planlar"
+MAMAK_LIST_URL = "https://www.mamak.bel.tr/aski_ilan/"
 TIMEOUT = 60
 MAX_KECIOREN_PAGES = 20
 
@@ -57,6 +60,22 @@ def _appeal_dates(text: str) -> tuple[str | None, str | None]:
             _tr_date(range_match.group(2)).isoformat(),
         )
 
+    start_label = re.search(
+        r"ASKIYA\s+ÇIKIŞ\s+TARİHİ\s*:?\s*(\d{1,2}[./]\d{1,2}[./]\d{4})",
+        text,
+        flags=re.IGNORECASE,
+    )
+    end_label = re.search(
+        r"ASKIDAN\s+İNİŞ\s+TARİHİ\s*:?\s*(\d{1,2}[./]\d{1,2}[./]\d{4})",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if start_label and end_label:
+        return (
+            _tr_date(start_label.group(1)).isoformat(),
+            _tr_date(end_label.group(1)).isoformat(),
+        )
+
     start_match = re.search(
         r"(\d{1,2}[./]\d{1,2}[./]\d{4})\s+tarihinden itibaren\s+"
         r"(?:bir|1|30)\s*(ay|gün)",
@@ -85,8 +104,10 @@ def _latest_date(text: str) -> str | None:
 
 def _decision_number(text: str) -> str | None:
     matches = re.findall(
-        r"(?:Büyükşehir Belediye (?:Meclisi|Encümeni)[^,.]{0,90}?"
-        r"(?:tarih ve|tarihli)\s*)(\d+(?:/\d+)?)\s*sayılı",
+        r"(?:Büyükşehir Belediye "
+        r"(?:Meclis(?:i| Kararı)?|Encümeni\w*).{0,160}?"
+        r"(?:tarih ve|tarihli|gün ve)\s*)(\d+(?:/\d+)?)"
+        r"(?:\s*sayılı?)?",
         text,
         flags=re.IGNORECASE,
     )
@@ -248,6 +269,128 @@ def parse_kecioren_detail(
     )
 
 
+def parse_cankaya_list(html: str) -> list[tuple[str, str]]:
+    """Return only planning notices, excluding the adjacent building-control table."""
+    soup = BeautifulSoup(html, "html.parser")
+    candidates: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for table in soup.select("#belgeler table"):
+        heading = table.find_previous(["h2", "h3", "h4"])
+        if not heading or "İmar İlanları" not in _clean(
+            heading.get_text(" ", strip=True)
+        ):
+            continue
+        for row in table.select("tbody tr"):
+            cells = row.select("td")
+            attachment = next(
+                (
+                    urljoin(CANKAYA_LIST_URL, link.get("href", ""))
+                    for link in row.select("a[href]")
+                    if _media_type(
+                        urljoin(CANKAYA_LIST_URL, link.get("href", ""))
+                    ).startswith(("application/pdf", "image/"))
+                ),
+                None,
+            )
+            if not cells or not attachment or attachment in seen:
+                continue
+            seen.add(attachment)
+            title_parts = [
+                _clean(node.get_text(" ", strip=True))
+                for node in cells[0].find_all("div")
+                if _clean(node.get_text(" ", strip=True))
+            ]
+            title = title_parts[-1] if title_parts else _clean(
+                cells[0].get_text(" ", strip=True)
+            )
+            candidates.append((title, attachment))
+    return candidates
+
+
+def _pdf_text(content: bytes) -> str:
+    with fitz.open(stream=content, filetype="pdf") as document:
+        return _clean(
+            " ".join(page.get_text("text", sort=True) for page in document)
+        )
+
+
+def parse_cankaya_notice(
+    *, title: str, attachment_url: str, pdf_text: str = ""
+) -> SourceRecord:
+    detail_text = _clean(f"{title} {pdf_text}")
+    record = _record(
+        municipality="Çankaya",
+        source_type="CANKAYA_ASKI",
+        external_id=stable_hash(attachment_url)[:20],
+        title=title,
+        detail_url=CANKAYA_LIST_URL,
+        detail_text=detail_text,
+        attachment_url=attachment_url,
+    )
+    if not record.appeal_start_date:
+        compact_date = re.search(
+            r"(?<!\d)(\d{2})(\d{2})(20\d{2})(?!\d)",
+            urlparse(attachment_url).path,
+        )
+        if compact_date:
+            try:
+                record.event_date = date(
+                    int(compact_date.group(3)),
+                    int(compact_date.group(2)),
+                    int(compact_date.group(1)),
+                ).isoformat()
+            except ValueError:
+                pass
+    return record
+
+
+def parse_mamak_detail(
+    html: str,
+    *,
+    detail_url: str,
+    fallback_title: str,
+    published_text: str = "",
+) -> SourceRecord:
+    soup = BeautifulSoup(html, "html.parser")
+    content = soup.select_one("#aski-bilgileri")
+    if not content:
+        raise ValueError("Mamak detail content was not found")
+    title = _title_from_detail(
+        soup,
+        fallback_title,
+        selector=".section-header h2",
+    )
+    title = re.sub(
+        r"^\s*ASKI İLAN TUTANAĞI\s*-\s*",
+        "",
+        title,
+        flags=re.IGNORECASE,
+    )
+    detail_text = _clean(
+        f"{published_text} {content.get_text(' ', strip=True)}"
+    )
+    attachment = next(
+        (
+            urljoin(detail_url, link.get("href", ""))
+            for link in content.select("a[href]")
+            if _media_type(urljoin(detail_url, link.get("href", ""))).startswith(
+                ("application/pdf", "image/")
+            )
+        ),
+        None,
+    )
+    external_id = detail_url.rstrip("/").rsplit("/", 1)[-1]
+    return _record(
+        municipality="Mamak",
+        source_type="MAMAK_ASKI",
+        external_id=external_id,
+        title=title,
+        detail_url=detail_url,
+        detail_text=detail_text,
+        attachment_url=attachment,
+    )
+
+
 def fetch_polatli_records(
     session: requests.Session | None = None,
 ) -> tuple[list[SourceRecord], list[str]]:
@@ -356,14 +499,119 @@ def fetch_kecioren_records(
     return records, errors
 
 
+def fetch_cankaya_records(
+    session: requests.Session | None = None,
+) -> tuple[list[SourceRecord], list[str]]:
+    http = session or http_session()
+    records: list[SourceRecord] = []
+    errors: list[str] = []
+    try:
+        response = http.get(CANKAYA_LIST_URL, timeout=TIMEOUT)
+        response.raise_for_status()
+        candidates = parse_cankaya_list(response.text)
+    except (requests.RequestException, ValueError) as exc:
+        return [], [f"CANKAYA_ASKI: {exc}"]
+
+    for title, attachment_url in candidates:
+        pdf_text = ""
+        try:
+            response = http.get(attachment_url, timeout=TIMEOUT)
+            response.raise_for_status()
+            if _media_type(attachment_url) == "application/pdf":
+                pdf_text = _pdf_text(response.content)
+        except (requests.RequestException, RuntimeError, ValueError) as exc:
+            # The title still produces a useful source-only event. The existing
+            # extraction stage will retry the document independently.
+            errors.append(f"CANKAYA_ASKI {attachment_url}: {exc}")
+        records.append(
+            parse_cankaya_notice(
+                title=title,
+                attachment_url=attachment_url,
+                pdf_text=pdf_text,
+            )
+        )
+    logger.info("CANKAYA_ASKI: %d record(s)", len(records))
+    return records, errors
+
+
+def fetch_mamak_records(
+    session: requests.Session | None = None,
+) -> tuple[list[SourceRecord], list[str]]:
+    http = session or http_session()
+    records: list[SourceRecord] = []
+    errors: list[str] = []
+    try:
+        response = http.get(MAMAK_LIST_URL, timeout=TIMEOUT)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        candidates = []
+        for link in soup.select(
+            "#tum-aski-ilanlar .item > a[href*='/aski_ilan/']"
+        ):
+            detail_url = urljoin(MAMAK_LIST_URL, link.get("href", ""))
+            title_node = link.select_one(".ilan-baslik")
+            date_node = link.select_one(".ilan-tarih")
+            title = _clean(
+                (title_node.get("title") if title_node else "")
+                or (title_node.get_text(" ", strip=True) if title_node else "")
+            )
+            if title:
+                candidates.append(
+                    (
+                        title,
+                        detail_url,
+                        _clean(
+                            date_node.get_text(" ", strip=True)
+                            if date_node
+                            else ""
+                        ),
+                    )
+                )
+    except requests.RequestException as exc:
+        return [], [f"MAMAK_ASKI: {exc}"]
+
+    seen: set[str] = set()
+    for title, detail_url, published_text in candidates:
+        if detail_url in seen:
+            continue
+        seen.add(detail_url)
+        try:
+            response = http.get(detail_url, timeout=TIMEOUT)
+            response.raise_for_status()
+            records.append(
+                parse_mamak_detail(
+                    response.text,
+                    detail_url=detail_url,
+                    fallback_title=title,
+                    published_text=published_text,
+                )
+            )
+        except (requests.RequestException, ValueError) as exc:
+            errors.append(f"MAMAK_ASKI {detail_url}: {exc}")
+    logger.info("MAMAK_ASKI: %d record(s)", len(records))
+    return records, errors
+
+
 def fetch_municipal_aski_records(
     session: requests.Session | None = None,
 ) -> tuple[list[SourceRecord], list[str]]:
     http = session or http_session()
     records: list[SourceRecord] = []
     errors: list[str] = []
-    for fetcher in (fetch_polatli_records, fetch_kecioren_records):
-        source_records, source_errors = fetcher(http)
-        records.extend(source_records)
-        errors.extend(source_errors)
+    for fetcher in (
+        fetch_polatli_records,
+        fetch_kecioren_records,
+        fetch_cankaya_records,
+        fetch_mamak_records,
+    ):
+        try:
+            source_records, source_errors = fetcher(http)
+            records.extend(source_records)
+            errors.extend(source_errors)
+        except Exception as exc:
+            # A layout change at one district site must not stop ABB or another
+            # district from completing its nightly snapshot.
+            source_name = fetcher.__name__.replace("fetch_", "").upper()
+            logger.exception("Municipal source failed: %s", source_name)
+            errors.append(f"{source_name}: {exc}")
     return records, errors

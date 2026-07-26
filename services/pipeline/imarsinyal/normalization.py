@@ -93,7 +93,7 @@ def normalize_parcels(text: str | None) -> list[str]:
 
     for match in re.finditer(
         r"(\d{1,6})\s*ada\s+"
-        r"((?:\d{1,6}\s*(?:,|ve)?\s*){1,20})"
+        r"((?:\d{1,6}\s*(?:,|ve)?\s*){1,200})"
         r"(?:sayılı\s+)?parseller?(?:e|i|in)?",
         normalized,
         flags=re.IGNORECASE,
@@ -114,6 +114,33 @@ def normalize_parcels(text: str | None) -> list[str]:
         found.append((match.start(), sequence, value))
         sequence += 1
 
+    # İlçe ilanlarında birden fazla ada tek cümlede ve "1 ila 18" aralığıyla
+    # yazılabiliyor. Her ada bölümünü bir sonraki ada/parsel sınırına kadar
+    # ayrı okuyarak aralıkları ve uzun listeleri kaybetmiyoruz.
+    for match in re.finditer(
+        r"(\d{1,6})\s*ada\s+(.{1,900}?)"
+        r"(?=(?:,\s*)?\d{1,6}\s*ada\b|"
+        r"(?:sayılı\s+|numaralı\s+)?parsel(?:ler)?\w*\b|$)",
+        normalized,
+        flags=re.IGNORECASE,
+    ):
+        ada = str(int(match.group(1)))
+        segment = match.group(2)
+        values: list[int] = []
+        for range_match in re.finditer(
+            r"(\d{1,6})\s*(?:ila|-)\s*(\d{1,6})",
+            segment,
+            flags=re.IGNORECASE,
+        ):
+            start, end = map(int, range_match.groups())
+            if start <= end and end - start <= 500:
+                values.extend(range(start, end + 1))
+        values.extend(int(value) for value in re.findall(r"\d{1,6}", segment))
+        for parcel in values:
+            value = f"{ada}/{parcel}"
+            found.append((match.start(), sequence, value))
+            sequence += 1
+
     shorthand_matches = list(
         re.finditer(
             r"(?<![\d/])(\d{2,6})\s*/\s*(\d{1,6})(?!\d)",
@@ -125,6 +152,16 @@ def normalize_parcels(text: str | None) -> list[str]:
         if 1900 <= ada_number <= 2100:
             # Belediye karar numaraları ve tarihler sıkça 2026/750 biçiminde
             # yazılır; bunlar ada/parsel değildir.
+            continue
+        suffix = normalized[match.end() : match.end() + 80]
+        if re.match(
+            r"\s*(?:NPP\b|(?:nolu|numaralı)\s+parselasyon\s+planı\b|"
+            r"sayılı\s+karar\w*\b)",
+            suffix,
+            flags=re.IGNORECASE,
+        ):
+            # "86230/1 NPP" veya "3629/16 nolu parselasyon planı" bir plan
+            # dosya numarasıdır; ada/parsel değildir.
             continue
         value = f"{ada_number}/{int(match.group(2))}"
         found.append((match.start(), sequence, value))
@@ -179,6 +216,10 @@ def neighborhood_from_text(text: str) -> str | None:
         "il",
         "ilçesi",
         "ilçe",
+        "ilçemiz",
+        "dan",
+        "den",
+        "nden",
         "ankara",
         "onay",
         "tarihi",
