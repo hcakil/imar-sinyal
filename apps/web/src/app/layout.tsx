@@ -53,9 +53,9 @@ export const viewport: Viewport = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const posthogProjectToken = process.env.POSTHOG_PROJECT_TOKEN || "";
+  const posthogProjectToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN || "";
   const posthogHost =
-    process.env.POSTHOG_HOST || "https://us.i.posthog.com";
+    process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
   return (
     <html lang="tr">
       <body>
