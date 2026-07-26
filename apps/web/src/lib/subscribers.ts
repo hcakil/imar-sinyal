@@ -4,6 +4,101 @@ import { Resend } from "resend";
 import { firestoreDb } from "./firestore";
 
 const fallbackSecret = "local-development-only-change-this-secret";
+const resendApiBase = "https://api.resend.com";
+
+type ResendContact = {
+  id: string;
+  email?: string;
+  unsubscribed?: boolean;
+};
+
+async function resendRequest<T>(
+  apiKey: string,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const response = await fetch(`${resendApiBase}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      ...init?.headers,
+    },
+  });
+  const body = (await response.json().catch(() => null)) as
+    | T
+    | { message?: string }
+    | null;
+  if (!response.ok) {
+    const message =
+      body &&
+      typeof body === "object" &&
+      "message" in body &&
+      typeof body.message === "string"
+        ? body.message
+        : `Resend API ${response.status}`;
+    throw new Error(message);
+  }
+  return body as T;
+}
+
+async function syncResendContact({
+  apiKey,
+  segmentId,
+  email,
+  contactId,
+}: {
+  apiKey: string;
+  segmentId: string;
+  email: string;
+  contactId?: string | null;
+}): Promise<string> {
+  let id = contactId || null;
+  if (id) {
+    try {
+      await resendRequest(apiKey, `/contacts/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ unsubscribed: false }),
+      });
+    } catch {
+      // A Resend account migration invalidates contact IDs stored by the
+      // previous account. Resolve the contact again by email below.
+      id = null;
+    }
+  }
+  if (!id) {
+    try {
+      const created = await resendRequest<ResendContact>(apiKey, "/contacts", {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          unsubscribed: false,
+          segments: [{ id: segmentId }],
+        }),
+      });
+      id = created.id;
+    } catch {
+      const current = await resendRequest<ResendContact>(
+        apiKey,
+        `/contacts/${encodeURIComponent(email)}`,
+      );
+      id = current.id;
+      if (current.unsubscribed) {
+        await resendRequest(apiKey, `/contacts/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ unsubscribed: false }),
+        });
+      }
+    }
+  }
+
+  await resendRequest(
+    apiKey,
+    `/contacts/${encodeURIComponent(id)}/segments/${encodeURIComponent(segmentId)}`,
+    { method: "POST" },
+  );
+  return id;
+}
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLocaleLowerCase("en-US");
@@ -61,24 +156,15 @@ export async function saveSubscriber({
     | null
     | undefined;
   const resendKey = process.env.RESEND_API_KEY?.trim();
-  const audienceId = process.env.RESEND_AUDIENCE_ID;
-  if (!resendContactId && resendKey && audienceId) {
+  const segmentId = process.env.RESEND_SEGMENT_ID?.trim();
+  if (resendKey && segmentId) {
     try {
-      const resend = new Resend(resendKey);
-      const created = await resend.contacts.create({
-        audienceId,
+      resendContactId = await syncResendContact({
+        apiKey: resendKey,
+        segmentId,
         email: normalized,
-        unsubscribed: false,
+        contactId: resendContactId,
       });
-      if (created.data?.id) {
-        resendContactId = created.data.id;
-      } else {
-        const current = await resend.contacts.get({
-          audienceId,
-          email: normalized,
-        });
-        resendContactId = current.data?.id || null;
-      }
     } catch (error) {
       console.error("resend_contact_sync_failed", error);
     }
@@ -117,19 +203,17 @@ export async function deactivateSubscriber(email: string): Promise<boolean> {
     { merge: true },
   );
   const resendKey = process.env.RESEND_API_KEY?.trim();
-  const audienceId = process.env.RESEND_AUDIENCE_ID;
-  if (resendKey && audienceId) {
+  if (resendKey) {
     try {
-      const resend = new Resend(resendKey);
       const contactId = snapshot.get("resend_contact_id") as string | undefined;
-      await resend.contacts.update(
-        contactId
-          ? { audienceId, id: contactId, unsubscribed: true }
-          : {
-              audienceId,
-              email: normalizeEmail(email),
-              unsubscribed: true,
-            },
+      const contactKey = contactId || normalizeEmail(email);
+      await resendRequest(
+        resendKey,
+        `/contacts/${encodeURIComponent(contactKey)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ unsubscribed: true }),
+        },
       );
     } catch (error) {
       console.error("resend_contact_unsubscribe_failed", error);

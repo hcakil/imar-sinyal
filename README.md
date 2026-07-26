@@ -240,9 +240,10 @@ gcloud secrets versions add unsubscribe-secret --data-file=-
 `unsubscribe-secret` için en az 32 rastgele byte kullanın. Anahtarları Git'e,
 issue'ya veya mesaja koymayın.
 
-Resend'de `İmarSinyal Bülteni` adlı bir Audience oluşturup kimliğini not edin.
-Bu kimlik gizli anahtar değildir; web build'indeki `_RESEND_AUDIENCE_ID`
-değeridir.
+Resend'de `İmarSinyal Bülteni` adlı bir Segment oluşturup kimliğini not edin.
+Bu kimlik gizli anahtar değildir; web build'indeki `_RESEND_SEGMENT_ID`
+değeridir. Kayıt olan kişi global kişi listesine eklenir ve bu segmente
+iliştirilir.
 
 9. Web image'ını oluşturup Cloud Run'a dağıtın. Resend API anahtarı henüz
    eklenmemişse site ve abonelik kaydı yine çalışır; Resend kişi eşitlemesi
@@ -251,7 +252,7 @@ değeridir.
 ```bash
 gcloud builds submit \
   --config cloudbuild.web.yaml \
-  --substitutions=_CONTACT_EMAIL=GERCEK_ILETISIM_EPOSTASI,_DATA_CONTROLLER_NAME=VERI_SORUMLUSU_ADI,_TEST_RECIPIENT=RESEND_HESAP_EPOSTASI,_RESEND_AUDIENCE_ID=RESEND_AUDIENCE_ID
+  --substitutions=_CONTACT_EMAIL=GERCEK_ILETISIM_EPOSTASI,_DATA_CONTROLLER_NAME=VERI_SORUMLUSU_ADI,_TEST_RECIPIENT=RESEND_HESAP_EPOSTASI,_RESEND_SEGMENT_ID=RESEND_SEGMENT_ID
 ```
 
 10. Gece pipeline job'ını dağıtın:
