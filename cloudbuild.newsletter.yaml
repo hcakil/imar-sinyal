@@ -2,7 +2,8 @@ substitutions:
   _REGION: europe-west1
   _NEWSLETTER_JOB: imarsinyal-newsletter
   _SITE_URL: https://imarsinyal.com
-  _TEST_RECIPIENT: digitalpratix@gmail.com
+  _TEST_RECIPIENT: superspor20@gmail.com
+  _FROM_EMAIL: İmarSinyal Ankara <bulten@imarsinyal.com>
 
 steps:
   - name: gcr.io/cloud-builders/docker
@@ -34,7 +35,7 @@ steps:
       - --command=python
       - --args=-m,imarsinyal.cli,newsletter
       - --service-account=imarsinyal-runtime@${PROJECT_ID}.iam.gserviceaccount.com
-      - --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},DATA_BACKEND=firestore,NEWSLETTER_PUBLIC_SENDS=false,NEWSLETTER_TEST_RECIPIENT=${_TEST_RECIPIENT},SITE_URL=${_SITE_URL}
+      - --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},DATA_BACKEND=firestore,NEWSLETTER_PUBLIC_SENDS=false,NEWSLETTER_TEST_RECIPIENT=${_TEST_RECIPIENT},NEWSLETTER_FROM=${_FROM_EMAIL},SITE_URL=${_SITE_URL}
       - --set-secrets=RESEND_API_KEY=resend-api-key:latest,UNSUBSCRIBE_SECRET=unsubscribe-secret:latest
 
 images:

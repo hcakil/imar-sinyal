@@ -139,6 +139,97 @@ flowchart TB
 - Kaynak PDF'lerin tamamı Storage'a kopyalanmaz; URL, hash ve küçük WebP kanıt
   önizlemeleri saklanır.
 
+### Kaynak kapsamı ve yenileme sıklığı
+
+Üretimde kaynaklar kullanıcı sayfa açtığında çekilmez. Cloud Scheduler her gece
+`03:15 Europe/Istanbul` saatinde tek bir snapshot çalışması başlatır. İhtiyaç
+halinde aynı Cloud Run Job elle de çalıştırılabilir.
+
+| Kaynak | Üretimde | İçerik | Geometri |
+|---|---|---|---|
+| ABB UIP | Evet | Aktif 1/1000 askılar | Resmî plan sınırı |
+| ABB NIP | Evet | Aktif 1/5000 askılar | Resmî plan sınırı |
+| ABB NIP25 | Evet | Aktif 1/25000 askılar | Resmî plan sınırı |
+| ABB CDP | Evet, hata izole | 1/100000 askılar | Kaynak servis dönerse sınır |
+| ABB Meclis | Evet | 2026 kararları, DOCX/PDF | Yok |
+| Polatlı | Evet | İlan metni ve PDF | Yok |
+| Keçiören | Evet | İlan metni ve PDF/JPG | Yok |
+| Çankaya | Evet | Yalnızca İmar İlanları ve PDF | Yok |
+| Mamak | Evet | Askı metni, tarih ve ek belge | Yok |
+| Altındağ genel duyuruları | Hayır | Çoğunlukla yapı/yıkım tebligatı | Yok |
+| Etimesgut İmar Planları | İncelendi, beklemede | Tarihsiz askı yerine plan arşivi/paftası | Belge içi çizim |
+
+Altındağ'ın genel duyuru akışı, başlığında “imar” veya “askı” geçse bile plan
+değişikliğinden farklı olan 3194/39 yapı tebligatlarını içerir. Bu akış ayrı bir
+ürün kategorisi oluşturulmadan alınmaz. Etimesgut sayfasında gerçek plan
+paftaları ve plan notları bulunur; ancak kayıtlarda güvenilir askı başlangıç ve
+bitiş tarihleri yoktur. Bu belgeler ileride `plan_archive` /
+`source_published` aşaması eklendiğinde alınabilir; bugün `on_appeal` olarak
+yayımlanmaz.
+
+### Harita için önerilen iki aşama
+
+İlk harita için PostGIS zorunlu değildir. ABB kayıtlarında kaynaktan gelen
+WGS84 plan poligonu, bbox ve centroid zaten Firestore'da saklanmaktadır. Dar
+MVP şu şekilde kurulabilir:
+
+1. `GET /api/events/map` yalnızca tarih/ilçe/etki filtresine uyan olayları
+   GeoJSON olarak döndürür.
+2. MapLibre GL JS, ABB plan poligonlarını çizer.
+3. Geometrisi olmayan ilçe ilanları ancak resmî olarak doğrulanmış bir
+   centroid varsa nokta olarak; aksi halde yalnızca liste kartında gösterilir.
+4. Her geometri `plan_polygon`, `parcel_polygon`, `centroid` veya `text_only`
+   güven etiketi ve kaynak URL'si taşır.
+5. 7/30/90 gün, ilçe, mahalle ve etki filtreleri API sorgusuyla uygulanır;
+   harita nesnesine tıklanınca mevcut detay sayfası açılır.
+
+PostGIS ikinci aşamada, kullanıcıların çizdiği alan ile plan sınırlarının
+kesişmesi, mesafe tamponu ve büyük hacimli parsel eşleştirmesi gerektiğinde
+eklenir. `ST_IsValid`, `ST_Intersects` ve `ST_DWithin` kontrolleri olmadan
+“parsel kesin etkileniyor” denmez. Firestore ana ürün veritabanı kalabilir;
+Cloud SQL/PostGIS yalnızca mekânsal indeks ve eşleştirme katmanı olur.
+
+Parsel geometrisinde öncelik sırası:
+
+1. Resmî belediye/ABB servisinde açıkça yayımlanan geometri
+2. Kullanım ve yeniden yayınlama yetkisi doğrulanmış resmî TKGM/MEGSİS servisi
+3. Aynı resmî belgede ada/parsel metin kanıtı
+4. Yalnızca bölgesel sinyal
+
+TKGM'nin halka açık Parsel Sorgu ekranı bir veri lisansı veya kararlı toplu API
+olarak varsayılmaz. Servis yetkisi netleşmeden arka uç endpoint'i taklit
+edilmez ve geometri topluca kopyalanmaz.
+
+### Hesap ve takip listesi tasarımı
+
+Hesap özelliği Firebase Authentication e-posta bağlantısı ile şifresiz
+başlatılabilir. Tarayıcı Firestore'a doğrudan yazmaz; Next.js API, Firebase ID
+token'ını doğrulayıp şu kayıtları sunucu tarafında yönetir:
+
+```text
+users
+watchlists
+watch_targets
+event_matches
+notification_preferences
+alert_deliveries
+```
+
+İlk takip hedefleri `district`, `neighborhood`, `parcel`, `polygon` ve
+`keyword` olur. Eşleştirme sırası:
+
+1. İlçe ve mahalle: normalize edilmiş tam eşleşme
+2. Ada/parsel: `il/ilçe/mahalle/ada/parsel` anahtarı ve belge kanıtı
+3. Çizili alan: resmî plan poligonu ile mekânsal kesişim
+4. Anahtar kelime: başlık, özet ve kanıt metninde eşleşme
+
+Her eşleşme `exact`, `nearby`, `mentioned` veya `regional` güven sınıfı taşır.
+Gece pipeline'ından sonra ayrı bir matcher çalışır; olay + takip kuralı + kanal
+birleşimi idempotency anahtarı olduğu için aynı alarm iki kez gitmez. Kullanıcı
+günlük/haftalık sıklık, sessiz saat ve ilçe tercihini değiştirebilir. Hesap
+silme, veri dışa aktarma, e-posta doğrulama, rate limit ve kural üst sınırı
+ilk sürümün parçasıdır.
+
 ## Yerel kurulum
 
 Gereksinimler: Node.js 22+, pnpm ve Python 3.11+.
@@ -334,6 +425,15 @@ gcloud builds submit \
 Varsayılan dağıtımda `NEWSLETTER_PUBLIC_SENDS=false` kalır. Kayıt olan gerçek
 kişiye e-posta gönderilmez; yalnızca `_TEST_RECIPIENT` olarak verilen Resend
 hesap e-postasına test gönderilir.
+
+Abonelik formu başarılı olduğunda e-posta Firestore'da izin zamanı ve ilçe
+tercihleriyle idempotent saklanır, aynı kişi Resend segmentine eklenir. Çıkış
+bağlantısı hem Firestore durumunu hem Resend kişisini abonelikten çıkarır.
+Web servisi test modunda yeni kaydı yalnızca test alıcısına bildirir. Haftalık
+job son yedi günün yayımlanmış olaylarını, ilçe dağılımını, yüksek etkili
+kayıtları ve bitişi yaklaşan askıları üretir. Gerçek toplu gönderim tek ortam
+değişkeniyle açılabilir; ilk içerik ve aktif alıcı listesi incelenmeden bu
+değer `true` yapılmaz.
 
 Alan adı Resend'de doğrulandıktan ve gizlilik/iletişim bilgileri
 tamamlandıktan sonra iki Cloud Run ortamında:
