@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = { title: "Gizlilik ve KVKK" };
 
 export default function PrivacyPage() {
-  const contact = process.env.CONTACT_EMAIL || "digitalpratix@gmail.com";
+  const contact = process.env.CONTACT_EMAIL || "info@imarsinyal.com";
   const controller =
     process.env.DATA_CONTROLLER_NAME || "İmarSinyal Ankara işletmecisi";
   return (
@@ -11,7 +11,7 @@ export default function PrivacyPage() {
       <article className="shell legal-copy">
         <span className="section-kicker">GİZLİLİK</span>
         <h1>Gizlilik ve kişisel veri bilgilendirmesi</h1>
-        <p className="legal-updated">Son güncelleme: 25 Temmuz 2026</p>
+        <p className="legal-updated">Son güncelleme: 26 Temmuz 2026</p>
         <h2>Veri sorumlusu</h2>
         <p>
           Bu hizmet kapsamında veri sorumlusu {controller}&apos;dir. İletişim:

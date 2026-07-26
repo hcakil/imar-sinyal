@@ -149,6 +149,27 @@ def download_pdf(url: str, path: Path) -> Path:
     return path
 
 
+def download_image_as_pdf(url: str, path: Path) -> tuple[Path, bytes]:
+    response = http_session().get(url, timeout=120)
+    response.raise_for_status()
+    content = response.content
+    if not content or len(content) > MAX_DOWNLOAD_BYTES:
+        raise ValueError("Image is empty or exceeds 250 MiB safety limit")
+    try:
+        with Image.open(io.BytesIO(content)) as image:
+            image.verify()
+        source = fitz.open(stream=content, filetype="png")
+    except Exception:
+        try:
+            source = fitz.open(stream=content, filetype="jpeg")
+        except Exception as exc:
+            raise ValueError("Source did not return a supported image") from exc
+    pdf_bytes = source.convert_to_pdf()
+    source.close()
+    path.write_bytes(pdf_bytes)
+    return path, content
+
+
 def upload_evidence_previews(
     *,
     record: SourceRecord,
@@ -324,9 +345,16 @@ def extract_pdf_record(
         return ExtractedChange(parse_error="No PDF document")
     workdir.mkdir(parents=True, exist_ok=True)
     safe_name = re.sub(r"[^A-Za-z0-9_-]", "_", record.source_id)
-    pdf_path = download_pdf(document.url, workdir / f"{safe_name}.pdf")
-    document.sha256 = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
-    document.size_bytes = pdf_path.stat().st_size
+    if (document.media_type or "").startswith("image/"):
+        pdf_path, source_bytes = download_image_as_pdf(
+            document.url, workdir / f"{safe_name}.pdf"
+        )
+        document.sha256 = hashlib.sha256(source_bytes).hexdigest()
+        document.size_bytes = len(source_bytes)
+    else:
+        pdf_path = download_pdf(document.url, workdir / f"{safe_name}.pdf")
+        document.sha256 = hashlib.sha256(pdf_path.read_bytes()).hexdigest()
+        document.size_bytes = pdf_path.stat().st_size
     selected = rank_pdf_pages(pdf_path)
     rendered = render_pages(pdf_path, selected)
     preview_urls = upload_evidence_previews(record=record, rendered=rendered)

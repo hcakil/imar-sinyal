@@ -8,7 +8,7 @@ export default function TermsPage() {
       <article className="shell legal-copy">
         <span className="section-kicker">KULLANIM KOŞULLARI</span>
         <h1>Kaynak, doğruluk ve sorumluluk sınırı</h1>
-        <p className="legal-updated">Son güncelleme: 25 Temmuz 2026</p>
+        <p className="legal-updated">Son güncelleme: 26 Temmuz 2026</p>
         <h2>Bağımsız veri ürünü</h2>
         <p>
           İmarSinyal Ankara herhangi bir belediye veya kamu kurumunun resmî

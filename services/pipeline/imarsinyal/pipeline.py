@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import tempfile
 import uuid
 from datetime import UTC, date, datetime
@@ -15,6 +16,7 @@ from .extraction import (
 from .linking import find_links
 from .models import ExtractedChange, PlanningEvent, SourceRecord
 from .normalization import (
+    clear_unchanged_metrics,
     empty_change_from_record,
     impact_score,
     slugify,
@@ -27,6 +29,7 @@ from .sources.council import (
     extract_docx_text,
     fetch_council_records,
 )
+from .sources.municipal import fetch_municipal_aski_records
 
 logger = logging.getLogger(__name__)
 COUNCIL_AI_TERMS = (
@@ -61,7 +64,7 @@ def _clear_unproven_values(change: ExtractedChange) -> ExtractedChange:
             metric.new_value = None
             metric.unit = None
             metric.evidence_ids = []
-    return change
+    return clear_unchanged_metrics(change)
 
 
 def _has_verified_value(change: ExtractedChange) -> bool:
@@ -85,6 +88,31 @@ def extract_record(record: SourceRecord, workdir: Path) -> ExtractedChange:
     ):
         return empty_change_from_record(record)
     document = record.documents.get("primary")
+    preferred_document = record.documents.get("plan_note") or document
+    if (
+        preferred_document
+        and (preferred_document.media_type or "").startswith("text/")
+        and record.raw.get("summary")
+    ):
+        return extract_text_record(
+            record,
+            numbered_paragraph_text(
+                [
+                    {
+                        "paragraph": index,
+                        "text": paragraph,
+                    }
+                    for index, paragraph in enumerate(
+                        re.split(
+                            r"(?<=[.!?])\s+",
+                            str(record.raw["summary"]),
+                        ),
+                        start=1,
+                    )
+                    if paragraph
+                ]
+            ),
+        )
     if (
         record.source_kind == "council"
         and document
@@ -178,6 +206,9 @@ def run_pipeline(
     errors: list[str] = []
 
     ask_records, ask_errors = fetch_aski_records()
+    municipal_records, municipal_errors = fetch_municipal_aski_records()
+    ask_records.extend(municipal_records)
+    ask_errors.extend(municipal_errors)
     records.extend(ask_records)
     errors.extend(ask_errors)
     if include_council:

@@ -1,7 +1,8 @@
 # İmarSinyal Ankara
 
-ABB meclis kararlarını ve imar askılarını otomatik izleyen; kaynak belgeli,
-filtrelenebilir planlama değişikliği akışı.
+ABB meclis kararlarını, büyükşehir askı katmanlarını ve ilçe belediyesi
+ilanlarını otomatik izleyen; kaynak belgeli, filtrelenebilir planlama
+değişikliği akışı.
 
 Bu repository üç parçadan oluşur:
 
@@ -40,22 +41,84 @@ Tarih alanları tarayıcı dilinden bağımsız Türkçe takvim kullanır. İste
 PostHog entegrasyonu varsayılan olarak kapalıdır; kullanıcı analitik izni
 vermeden olay göndermez, oturum kaydı ve form içeriği toplamaz.
 
-## Veri hattı
+## Bugünkü aşama
 
-```text
-ABB ArcGIS askı katmanları ─┐
-                            ├─ snapshot/hash ─ normalize ─ planning_events
-ABB meclis kararları/DOCX ──┘                       │
-                                                   ├─ kanıt
-Gemini belge analizi ───────────────────────────────┤
-                                                   └─ ilişkilendirme
+Ürün **özel beta / yumuşak lansman hazırlığı** aşamasındadır. Altyapı ve halka
+açık ürün dilimleri tamamlanmış, gerçek kullanıcı edinimi henüz
+başlatılmamıştır.
+
+| İlk 12 haftalık plan | Durum | Açıklama |
+|---|---|---|
+| Hafta 1 — temel ve landing | Tamamlandı | Next.js, Firestore, Cloud Run ve bülten formu canlı |
+| Hafta 2 — ABB meclis scraper | Tamamlandı | 1 Ocak 2026 backfill ve idempotent snapshot akışı var |
+| Hafta 3 — halka açık olay sayfaları | Tamamlandı | Akış, filtre, detay, kaynak ve SEO rotaları canlı |
+| Hafta 4 — sınıflandırma ve etki | Tamamlandı | Deterministik kategori/etki ve kanıt korumaları var |
+| Hafta 5 — harita | Bilinçli ertelendi | MVP kapsamı dışında |
+| Hafta 6 — hesap/takip listesi | Bilinçli ertelendi | MVP kapsamı dışında |
+| Hafta 7 — e-posta | Kısmen tamamlandı | Test bülteni ve zamanlayıcı hazır; gerçek gönderim domain doğrulamasını bekliyor |
+| Hafta 8 — ödeme | Başlamadı | Kullanım sinyali görülmeden açılmayacak |
+| Hafta 9 — bülten lansmanı | Hazır, yayın bekliyor | Pazartesi 08:30 job'u kurulu |
+| Hafta 10 — doğrudan erişim | Başlamadı | Domain ve ilk kaynak kalite kontrolünden sonra |
+| Hafta 11 — ücretli dönüşüm | Başlamadı | En erken kullanım davranışı oluştuktan sonra |
+| Hafta 12 — go/no-go | Başlamadı | Abone, geri dönüş ve talep metrikleriyle yapılacak |
+
+Kronolojik olarak “7. haftadayız” demek yanıltıcı olur: 5 ve 6. haftalar MVP
+kararıyla ertelendi, 7 ve 9. haftanın altyapısı öne alındı. Doğru ürün tanımı
+**Hafta 4 tamamlandı + lansman kapısı bekleniyor** şeklindedir.
+
+## Sistem akışı
+
+### Veri ve yayın hattı
+
+```mermaid
+flowchart LR
+    A["ABB ArcGIS<br/>UIP · NIP · NIP25 · CDP"] --> S["Kaynak adaptörleri"]
+    B["ABB meclis<br/>kararları · DOCX/PDF"] --> S
+    P["Polatlı Belediyesi<br/>ilan + PDF"] --> S
+    K["Keçiören Belediyesi<br/>ilan + PDF/JPG"] --> S
+    S --> H["Snapshot + SHA-256<br/>idempotent değişiklik tespiti"]
+    H --> N["Deterministik normalizasyon<br/>ilçe · mahalle · ada/parsel · ölçek"]
+    N --> D{"Belge türü"}
+    D -->|DOCX/HTML| T["Metin, tablo ve üstü çizili run analizi"]
+    D -->|PDF/JPG| V["Sayfa tarama + seçici Gemini Vision"]
+    T --> G["Alan doğrulama ve kanıt kontrolü"]
+    V --> G
+    G --> L["Meclis ↔ askı ilişkilendirme"]
+    L --> F[("Firestore<br/>planning_events · evidence · versions")]
+    F --> W["Next.js SSR/API"]
+    W --> U["Halka açık akış ve detay sayfaları"]
+    F --> M["Pazartesi bülten job'u"]
+    M --> R["Resend"]
 ```
 
-- UIP, NIP, NIP25 ve CDP bağımsız çekilir; bir kaynağın hatası diğerlerini
-  durdurmaz.
+### Bulut mimarisi
+
+```mermaid
+flowchart TB
+    DNS["imarsinyal.com DNS"] --> FH["Firebase Hosting<br/>global CDN + TLS"]
+    FH --> CR["Cloud Run service<br/>Next.js SSR"]
+    CR --> FS[("Firestore europe-west1")]
+    CR --> PH["PostHog<br/>yalnızca açık analitik izniyle"]
+    CS["Cloud Scheduler<br/>03:15 her gece"] --> CJ["Cloud Run Job<br/>pipeline"]
+    CJ --> FS
+    CJ --> GCS["Cloud Storage<br/>küçük WebP kanıtları"]
+    CJ --> GM["Gemini<br/>seçici belge analizi"]
+    WS["Cloud Scheduler<br/>Pzt 08:30"] --> NJ["Cloud Run Job<br/>haftalık bülten"]
+    NJ --> FS
+    NJ --> RE["Resend"]
+    SM["Secret Manager"] -.-> CR
+    SM -.-> CJ
+    SM -.-> NJ
+    MON["Cloud Monitoring"] -. hata/boş scrape .-> CJ
+```
+
+- UIP, NIP, NIP25, CDP, Polatlı ve Keçiören kaynakları bağımsız çekilir; bir
+  kaynağın hatası diğerlerini durdurmaz.
 - Geometri WGS84 olarak alınır; bbox ve centroid saklanır.
 - Yeni, değişmiş, aynı kalan ve kaynaktan düşen snapshot'lar ayrılır.
 - Meclis kararları 1 Ocak 2026'ya kadar geriye doldurulabilir.
+- Polatlı ilan metni ve bağlı PDF; Keçiören ilan metni ve bağlı PDF/JPG birlikte
+  saklanır. İlçe kaynağında varsayılan başlangıç kesimi 1 Ocak 2026'dır.
 - DOCX metni, tabloları ve üstü çizili run'ları deterministik okunur.
 - PDF'nin tüm sayfaları ucuz metin/çizim taramasından geçer; en ilgili en fazla
   12 sayfa Vision'a gider.
@@ -117,10 +180,27 @@ Regresyon paketi özellikle şunları kilitler:
 - Tek ArcGIS katman hatası diğer katmanları durdurmaz.
 - Aynı snapshot ikinci çalışmada yeni yazım üretmez.
 
-25 Temmuz 2026 canlı salt-okunur doğrulamasında UIP 1, NIP 5, NIP25 0 aktif
-kayıt döndürdü; CDP servis hatası izole edildi. Aynı snapshot'ın ikinci
-çalışmasında `changed_snapshots=0`, `unchanged_snapshots=6` elde edildi.
-2026 meclis backfill parser'ı 232 benzersiz aday karar buldu.
+26 Temmuz 2026 canlı doğrulamasında UIP 1, NIP 5, NIP25 0, Polatlı 4,
+Keçiören 6 ve 2026 kesimine uyan 51 meclis kaydı birlikte işlendi. Toplam 67
+kaynak kaydının 10'u yeni snapshot olarak 10 ürüne dönüştü; başarısız kayıt
+olmadı. CDP servis hatası izole edildi ve diğer kaynakları durdurmadı. Aynı
+snapshot'ın ikinci çalışmasında `changed_snapshots=0`,
+`unchanged_snapshots=67` elde edilerek idempotency canlıda doğrulandı.
+Geçmiş veri kalite bakımında 197 olayın parsel alanı, 59 olayın aynı
+eski/yeni metrikleri ve etki puanı sürümlü olarak düzeltildi; iki bakım
+komutunun da ikinci geçişi sıfır değişiklik üretti.
+
+Eski kayıtların parsel alanlarını yeni deterministik kurallarla kontrol etmek
+için bakım komutu önce salt-okunur çalıştırılır, örnekler incelendikten sonra
+`--apply` ile yazılır. Yazılan her düzeltme `change_versions` koleksiyonunda
+sürümlenir:
+
+```bash
+PYTHONPATH=services/pipeline python -m imarsinyal.cli repair-parcels
+PYTHONPATH=services/pipeline python -m imarsinyal.cli repair-parcels --apply
+PYTHONPATH=services/pipeline python -m imarsinyal.cli repair-metrics
+PYTHONPATH=services/pipeline python -m imarsinyal.cli repair-metrics --apply
+```
 
 ## Firebase ve Google Cloud kurulumu
 
@@ -244,9 +324,10 @@ değerleri açılır.
 ## Ürün analitiği
 
 PostHog kurulumu isteğe bağlıdır. Project settings sayfasındaki `phc_` ile
-başlayan public project token Cloud Run'da `POSTHOG_PROJECT_TOKEN` olarak
-tanımlandığında izin paneli görünür. Bu token gizli bir yönetim anahtarı
-değildir. Varsayılan host ABD PostHog Cloud için
+başlayan public project token Cloud Run'da
+`NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` olarak tanımlandığında izin paneli
+görünür. Bu token gizli bir yönetim anahtarı değildir. Varsayılan host ABD
+PostHog Cloud için
 `https://us.i.posthog.com` değeridir.
 
 İlk aşamada yalnızca şu değer sinyalleri ölçülür:
@@ -256,8 +337,38 @@ değildir. Varsayılan host ABD PostHog Cloud için
 - detay/kaynak belge açma
 - bülten kaydının tamamlanması
 
-E-posta, form içeriği ve session replay PostHog'a gönderilmez. Kullanıcı
-iznini altbilgideki **Analitik tercihleri** düğmesinden değiştirebilir.
+E-posta, form içeriği ve session replay PostHog'a gönderilmez. Abonelik API'si
+sunucudan analitik olayı üretmez; yalnızca izin verilmiş tarayıcı istemcisi
+ölçüm yapar. Kullanıcı iznini altbilgideki **Analitik tercihleri** düğmesinden
+değiştirebilir.
+
+## Alan adı ve DNS geçişi
+
+Firebase Hosting tarafında `imarsinyal.com` ana domaini ve
+`www.imarsinyal.com → imarsinyal.com` kalıcı yönlendirmesi oluşturulmuştur.
+Natro DNS'te şu değişiklikler yapılmalıdır:
+
+| İşlem | Tür | Ad/host | Değer |
+|---|---|---|---|
+| Sil | A | `@` | `85.159.66.93` |
+| Ekle | A | `@` | `199.36.158.100` |
+| Ekle | TXT | `@` | `hosting-site=imar-sinyal` |
+| Sil | CNAME | `www` | `redirect.natrocdn.com` |
+| Ekle | CNAME | `www` | `imar-sinyal.web.app` |
+
+Natro e-posta hizmetinin mevcut SPF TXT kaydı silinmemelidir. DNS yayıldıktan
+sonra Firebase alan sahipliğini doğrular, TLS sertifikasını üretir ve `www`
+trafiğini ana domaine yönlendirir.
+
+Resend hesabındaki ücretsiz plan bugün tek domain hakkını başka bir domain için
+kullandığından `imarsinyal.com` ekleme isteği reddedilmektedir. Mevcut domain
+silinmeden şu iki güvenli seçenekten biri seçilmelidir:
+
+1. Resend planını birden fazla domain destekleyen seviyeye yükseltmek.
+2. İmarSinyal için ayrı bir Resend hesabı/API anahtarı kullanmak.
+
+Resend doğrulaması tamamlanana kadar `NEWSLETTER_PUBLIC_SENDS=false` kalır;
+gerçek abonelere gönderim yapılmaz.
 
 ## İzleme
 
@@ -280,9 +391,9 @@ Oluşturulan iki politika:
 Bildirim e-postası repository'ye yazılmaz; proje sahibinin Monitoring
 notification channel'ı olarak eklenir.
 
-## Henüz yapılmayacaklar
+## Şimdilik yapılmayacaklar
 
-- Alan adı ve reklam satın alma
+- Ücretli reklam
 - Kullanıcı hesabı, ödeme ve Pro paket
 - Harita ve kişisel alarm
 - WhatsApp/SMS

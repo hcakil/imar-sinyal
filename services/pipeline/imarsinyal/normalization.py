@@ -88,33 +88,69 @@ def normalize_parcels(text: str | None) -> list[str]:
     if not text:
         return []
     normalized = text.replace("\\", "/").replace("–", "-")
-    pairs = re.findall(
-        r"(?P<ada>\d{1,6})\s*(?:ada)?\s*[/,\- ]\s*(?P<parsel>\d{1,6})\s*(?:parsel)?",
+    found: list[tuple[int, int, str]] = []
+    sequence = 0
+
+    for match in re.finditer(
+        r"(\d{1,6})\s*ada\s+"
+        r"((?:\d{1,6}\s*(?:,|ve)?\s*){1,20})"
+        r"(?:sayılı\s+)?parseller?(?:e|i|in)?",
         normalized,
         flags=re.IGNORECASE,
+    ):
+        ada = str(int(match.group(1)))
+        for parcel in re.findall(r"\d{1,6}", match.group(2)):
+            value = f"{ada}/{int(parcel)}"
+            found.append((match.start(), sequence, value))
+            sequence += 1
+
+    for match in re.finditer(
+        r"(\d{1,6})\s*ada(?:sı)?\s+(\d{1,6})\s*"
+        r"(?:sayılı\s+)?parsel",
+        normalized,
+        flags=re.IGNORECASE,
+    ):
+        value = f"{int(match.group(1))}/{int(match.group(2))}"
+        found.append((match.start(), sequence, value))
+        sequence += 1
+
+    shorthand_matches = list(
+        re.finditer(
+            r"(?<![\d/])(\d{2,6})\s*/\s*(\d{1,6})(?!\d)",
+            normalized,
+        )
     )
+    for index, match in enumerate(shorthand_matches):
+        ada_number = int(match.group(1))
+        if 1900 <= ada_number <= 2100:
+            # Belediye karar numaraları ve tarihler sıkça 2026/750 biçiminde
+            # yazılır; bunlar ada/parsel değildir.
+            continue
+        value = f"{ada_number}/{int(match.group(2))}"
+        found.append((match.start(), sequence, value))
+        sequence += 1
+        # Belediye başlıkları "863/1, 2, 3, 4 ve 2150/4, 5" biçimini de
+        # kullanıyor. Bir sonraki açık ada/parsel çiftine kadar yalnızca
+        # bitişik virgül/"ve" parçalarını aynı adanın parselleri say.
+        end = (
+            shorthand_matches[index + 1].start()
+            if index + 1 < len(shorthand_matches)
+            else len(normalized)
+        )
+        remainder = normalized[match.end() : end]
+        cursor = 0
+        while continuation := re.match(
+            r"\s*(?:,|ve)\s*(\d{1,6})(?!\d)", remainder[cursor:]
+        ):
+            parcel = int(continuation.group(1))
+            found.append((match.start(), sequence, f"{ada_number}/{parcel}"))
+            sequence += 1
+            cursor += continuation.end()
+
     result: list[str] = []
-    for ada, parcel in pairs:
-        value = f"{int(ada)}/{int(parcel)}"
+    for _, _, value in sorted(found):
         if value not in result:
             result.append(value)
-
-    if result:
-        return result
-
-    ada_match = re.search(r"(\d{1,6})\s*ada", normalized, flags=re.IGNORECASE)
-    if not ada_match:
-        return []
-    ada = str(int(ada_match.group(1)))
-    tail = normalized[ada_match.end() :]
-    parcel_match = re.search(
-        r"([\d,\s]+)\s*parsel", tail, flags=re.IGNORECASE
-    )
-    if parcel_match:
-        for parcel in re.findall(r"\d+", parcel_match.group(1)):
-            value = f"{ada}/{int(parcel)}"
-            if value not in result:
-                result.append(value)
     return result
 
 
@@ -135,9 +171,41 @@ def neighborhood_from_text(text: str) -> str | None:
     if not match:
         return None
     value = re.sub(r"\s+", " ", match.group(1)).strip(" ,-")
-    stop_words = {"ilçesi", "ilçe", "ankara"}
-    parts = [part for part in value.split() if part.casefold() not in stop_words]
-    return " ".join(parts[-3:]).title() if parts else None
+    def folded(value: str) -> str:
+        return value.casefold().replace("\N{COMBINING DOT ABOVE}", "")
+
+    stop_words = {
+        "ili",
+        "il",
+        "ilçesi",
+        "ilçe",
+        "ankara",
+        "onay",
+        "tarihi",
+        "plan",
+        "planı",
+        "değişikliği",
+        "parselasyon",
+        "konusu",
+        "mevkii",
+        "uygulama",
+        "imar",
+        "nolu",
+        "belediyesi",
+        "başkanlığından",
+    }
+    district_names = {folded(district) for district in DISTRICTS}
+    selected: list[str] = []
+    for part in reversed(value.split()):
+        key = folded(part.strip(" ,-/()"))
+        if key in stop_words or key in district_names:
+            if selected:
+                break
+            continue
+        selected.append(part)
+        if len(selected) == 3:
+            break
+    return " ".join(reversed(selected)).title() if selected else None
 
 
 def plan_scales_from_text(text: str) -> list[str]:
@@ -186,6 +254,36 @@ def normalize_metric_kind(change: ExtractedChange) -> ExtractedChange:
     if change.emsal.old_value is None and change.emsal.new_value is None:
         change.emsal.unit = None
         change.emsal.evidence_ids = []
+    return change
+
+
+def _comparable_metric_value(value: str | float | int) -> str:
+    text = re.sub(r"\s+", " ", str(value)).strip().casefold()
+    numeric = re.fullmatch(r"\d+(?:[.,]\d+)?", text)
+    if numeric:
+        return str(float(text.replace(",", ".")))
+    return text
+
+
+def clear_unchanged_metrics(change: ExtractedChange) -> ExtractedChange:
+    """Do not publish an identical old/new value as a planning change."""
+    for metric in (
+        change.function,
+        change.emsal,
+        change.taks,
+        change.yencok,
+        change.density,
+    ):
+        if metric.old_value is None or metric.new_value is None:
+            continue
+        if _comparable_metric_value(metric.old_value) != _comparable_metric_value(
+            metric.new_value
+        ):
+            continue
+        metric.old_value = None
+        metric.new_value = None
+        metric.unit = None
+        metric.evidence_ids = []
     return change
 
 
