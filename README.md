@@ -205,6 +205,13 @@ ve askı tarihleriyle; Mamak 86230/1 NPP ilanı ise 198 gerçek ada/parsel,
 1338/1482 numaralı ABB Encümen kararı ve kesin askı aralığıyla okundu.
 `86230/1 NPP` gibi plan dosya numaralarının ada/parsel sanılması engellendi.
 
+Aynı gün production job'ı 74 kaynak kaydı ve 23 aktif askı kaydıyla
+tamamlandı (`failed_records=0`). Çankaya'nın 6 ve Mamak'ın 1 olayı canlı
+API'ye yayımlandı. Kırkkonaklar 26374/5 ilçe askısı ABB Meclisinin 384
+numaralı kararıyla `%90` güvenle ilişkilendirildi. Sürekli hata veren CDP
+katmanı kısmi kaynak hatası olarak raporlandı; diğer 7 askı kaynağı ve meclis
+akışı durmadı.
+
 Eski kayıtların parsel alanlarını yeni deterministik kurallarla kontrol etmek
 için bakım komutu önce salt-okunur çalıştırılır, örnekler incelendikten sonra
 `--apply` ile yazılır. Yazılan her düzeltme `change_versions` koleksiyonunda
