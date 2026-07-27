@@ -115,6 +115,7 @@ class PlanningEvent:
     geometry: dict[str, Any] | None = None
     linked_event_ids: list[str] = field(default_factory=list)
     link_confidence: float | None = None
+    source_updated_at: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
 

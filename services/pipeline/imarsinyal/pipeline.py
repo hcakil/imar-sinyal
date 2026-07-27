@@ -131,6 +131,7 @@ def extract_record(record: SourceRecord, workdir: Path) -> ExtractedChange:
 def event_from_record(
     record: SourceRecord, change: ExtractedChange
 ) -> PlanningEvent:
+    observed_at = datetime.now(UTC).isoformat()
     change = _clear_unproven_values(change)
     verified = _has_verified_value(change)
     district = record.district or "Ankara"
@@ -169,8 +170,9 @@ def event_from_record(
         appeal_end_date=record.appeal_end_date,
         document_hash=primary_document.sha256 if primary_document else None,
         geometry=record.geometry,
-        created_at=datetime.now(UTC).isoformat(),
-        updated_at=datetime.now(UTC).isoformat(),
+        source_updated_at=observed_at,
+        created_at=observed_at,
+        updated_at=observed_at,
     )
 
 

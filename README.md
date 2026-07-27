@@ -55,7 +55,7 @@ başlatılmamıştır.
 | Hafta 4 — sınıflandırma ve etki | Tamamlandı | Deterministik kategori/etki ve kanıt korumaları var |
 | Hafta 5 — harita | Bilinçli ertelendi | MVP kapsamı dışında |
 | Hafta 6 — hesap/takip listesi | Bilinçli ertelendi | MVP kapsamı dışında |
-| Hafta 7 — e-posta | Teknik olarak tamamlandı, kontrollü kapalı | Resend domain/segment, kayıt-unsubscribe ve test gönderimi çalışıyor; toplu gönderim lansman kararını bekliyor |
+| Hafta 7 — e-posta | Teknik olarak tamamlandı, kontrollü kapalı | Resend domain/segment, kayıt-unsubscribe ve pazartesi test gönderimi çalışıyor; toplu gönderim lansman kararını bekliyor |
 | Hafta 8 — ödeme | Başlamadı | Kullanım sinyali görülmeden açılmayacak |
 | Hafta 9 — bülten lansmanı | Hazır, yayın bekliyor | Pazartesi 08:30 job'u kurulu |
 | Hafta 10 — doğrudan erişim | Başlamadı | Domain ve ilk kaynak kalite kontrolünden sonra |
@@ -136,6 +136,10 @@ flowchart TB
 - Kaynaktaki kanıta bağlanamayan eski/yeni değer temizlenir ve yayımlanmaz.
 - Meclis ve askı olayları ilçe, parsel, ölçek ve tarih yakınlığıyla bağlanır.
   Düşük güvenli adaylar birleştirilmez.
+- Haftalık bülten, resmî tarihi son yedi günde olan olaylarla kaynak içeriği
+  son yedi günde ilk kez görülen/değişen olayların birleşimini alır. Aynı olay
+  iki kurala da uyarsa yalnızca bir kez gönderilir. `newsletter --dry-run`
+  seçilen olayları e-posta göndermeden gösterir.
 - Kaynak PDF'lerin tamamı Storage'a kopyalanmaz; URL, hash ve küçük WebP kanıt
   önizlemeleri saklanır.
 

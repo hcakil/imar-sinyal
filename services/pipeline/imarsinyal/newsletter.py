@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import html
 import os
-import base64
 from collections import Counter
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -14,6 +15,13 @@ import requests
 from .repository import FirestoreRepository, Repository
 
 RESEND_URL = "https://api.resend.com/emails"
+
+
+@dataclass(frozen=True)
+class WeeklySelection:
+    events: list[Any]
+    official_date_count: int
+    source_activity_count: int
 
 
 def _unsubscribe_token(email: str) -> str:
@@ -27,15 +35,63 @@ def _unsubscribe_token(email: str) -> str:
     ).decode().rstrip("=")
 
 
-def _published_since(repository: Repository, since: date):
-    return sorted(
-        (
-            event
-            for event in repository.list_events(published_only=True)
-            if date.fromisoformat(event.event_date) >= since
-        ),
+def _as_utc(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def _source_activity_at(event: Any) -> datetime | None:
+    explicit = _as_utc(event.source_updated_at)
+    if explicit:
+        return explicit
+    created = _as_utc(event.created_at)
+    updated = _as_utc(event.updated_at)
+    if created and updated and abs(updated - created) <= timedelta(minutes=10):
+        return created
+    return None
+
+
+def select_weekly_events(
+    repository: Repository,
+    *,
+    now: datetime,
+    days: int = 7,
+) -> WeeklySelection:
+    current = now.astimezone(UTC)
+    since = current - timedelta(days=days)
+    selected: dict[str, Any] = {}
+    official_ids: set[str] = set()
+    source_activity_ids: set[str] = set()
+    for event in repository.list_events(published_only=True):
+        try:
+            officially_recent = date.fromisoformat(event.event_date) >= since.date()
+        except (TypeError, ValueError):
+            officially_recent = False
+        source_updated_at = _source_activity_at(event)
+        source_recent = bool(source_updated_at and source_updated_at >= since)
+        if not officially_recent and not source_recent:
+            continue
+        selected[event.id] = event
+        if officially_recent:
+            official_ids.add(event.id)
+        if source_recent:
+            source_activity_ids.add(event.id)
+    events = sorted(
+        selected.values(),
         key=lambda item: (item.impact_score, item.event_date),
         reverse=True,
+    )
+    return WeeklySelection(
+        events=events,
+        official_date_count=len(official_ids),
+        source_activity_count=len(source_activity_ids),
     )
 
 
@@ -44,6 +100,8 @@ def render_weekly_html(
     events: list[Any],
     recipient: str,
     site_url: str,
+    official_date_count: int | None = None,
+    source_activity_count: int | None = None,
 ) -> str:
     district_counts = Counter(event.district for event in events)
     high_impact = [event for event in events if event.impact_score >= 55][:5]
@@ -87,7 +145,15 @@ def render_weekly_html(
     <div style="font-family:Arial,sans-serif;max-width:680px;margin:auto;color:#17352c">
       <p style="color:#ba5b2d;font-weight:700">İMAR SİNYALİ · HAFTALIK</p>
       <h1>Ankara'da bu hafta {len(events)} planlama olayı</h1>
-      <p>Resmî kaynaklardan derlenen haftalık değişiklik özeti.</p>
+      <p>
+        Son yedi günde resmî tarihi bulunan veya sistemde ilk kez
+        görülen/değişen kaynaklardan derlenen özet.
+      </p>
+      <p style="font-size:13px;color:#5f706a">
+        Resmî tarihi bu dönemde:
+        {official_date_count if official_date_count is not None else len(events)}
+        · Yeni/değişen kaynak: {source_activity_count if source_activity_count is not None else 0}
+      </p>
       <h2>İlçelere göre</h2><ul>{district_html}</ul>
       <h2>Yüksek etkili kayıtlar</h2><ol>{event_html}</ol>
       <h2>Askı bitişi yaklaşanlar</h2><ul>{ending_html}</ul>
@@ -110,10 +176,13 @@ def _active_subscribers(repository: Repository) -> list[str]:
     if not isinstance(repository, FirestoreRepository):
         test_recipient = os.getenv("NEWSLETTER_TEST_RECIPIENT")
         return [test_recipient] if test_recipient else []
+    from google.cloud.firestore_v1.base_query import FieldFilter
+
     results: list[str] = []
-    for snapshot in repository.db.collection("subscribers").where(
-        "status", "==", "active"
-    ).stream():
+    query = repository.db.collection("subscribers").where(
+        filter=FieldFilter("status", "==", "active")
+    )
+    for snapshot in query.stream():
         email = snapshot.to_dict().get("email")
         if email:
             results.append(str(email))
@@ -142,7 +211,8 @@ def send_weekly_newsletter(
     if not recipients:
         raise RuntimeError("No newsletter recipient is configured")
 
-    events = _published_since(repository, current.date() - timedelta(days=7))
+    selection = select_weekly_events(repository, now=current)
+    events = selection.events
     sent = failed = 0
     errors: list[str] = []
     for recipient in sorted(set(recipients)):
@@ -163,6 +233,8 @@ def send_weekly_newsletter(
                     events=events,
                     recipient=recipient,
                     site_url=site_url,
+                    official_date_count=selection.official_date_count,
+                    source_activity_count=selection.source_activity_count,
                 ),
             },
             timeout=30,
@@ -177,5 +249,30 @@ def send_weekly_newsletter(
         "failed": failed,
         "public_sends": public_sends,
         "event_count": len(events),
+        "official_date_count": selection.official_date_count,
+        "source_activity_count": selection.source_activity_count,
         "errors": errors,
+    }
+
+
+def preview_weekly_newsletter(
+    repository: Repository,
+    *,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    selection = select_weekly_events(repository, now=now or datetime.now(UTC))
+    return {
+        "event_count": len(selection.events),
+        "official_date_count": selection.official_date_count,
+        "source_activity_count": selection.source_activity_count,
+        "events": [
+            {
+                "id": event.id,
+                "title": event.title,
+                "district": event.district,
+                "event_date": event.event_date,
+                "source_updated_at": event.source_updated_at,
+            }
+            for event in selection.events
+        ],
     }

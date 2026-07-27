@@ -71,6 +71,7 @@ export interface PlanningEvent {
   evidence: Evidence[];
   linked_event_ids: string[];
   link_confidence?: number | null;
+  source_updated_at?: string | null;
   created_at: string;
   updated_at: string;
 }

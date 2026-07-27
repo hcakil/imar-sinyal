@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 from dotenv import load_dotenv
 
-from .newsletter import send_weekly_newsletter
+from .newsletter import preview_weekly_newsletter, send_weekly_newsletter
 from .pipeline import run_pipeline
 from .repair import repair_equal_metrics, repair_event_parcels
 from .repository import create_repository
@@ -26,7 +26,12 @@ def parser() -> argparse.ArgumentParser:
     backfill.add_argument("--from-date", default="2026-01-01")
     backfill.add_argument("--force", action="store_true")
 
-    subcommands.add_parser("newsletter")
+    newsletter = subcommands.add_parser("newsletter")
+    newsletter.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview selected events without sending email.",
+    )
     repair = subcommands.add_parser("repair-parcels")
     repair.add_argument(
         "--apply",
@@ -51,7 +56,11 @@ def main() -> None:
     )
     repository = create_repository()
     if args.command == "newsletter":
-        result = send_weekly_newsletter(repository)
+        result = (
+            preview_weekly_newsletter(repository)
+            if args.dry_run
+            else send_weekly_newsletter(repository)
+        )
     elif args.command == "repair-parcels":
         result = repair_event_parcels(repository, apply=args.apply)
     elif args.command == "repair-metrics":
