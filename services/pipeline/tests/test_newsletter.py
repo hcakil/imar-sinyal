@@ -110,7 +110,7 @@ class NewsletterSelectionTests(unittest.TestCase):
         self.assertEqual(selection.official_date_count, 1)
         self.assertEqual(selection.source_activity_count, 1)
 
-    def test_legacy_first_seen_timestamps_count_as_source_activity(self) -> None:
+    def test_legacy_timestamps_do_not_create_false_source_activity(self) -> None:
         repository = MemoryRepository(
             [
                 event(
@@ -119,19 +119,13 @@ class NewsletterSelectionTests(unittest.TestCase):
                     created_at="2026-07-27T00:16:00+00:00",
                     updated_at="2026-07-27T00:16:01+00:00",
                 ),
-                event(
-                    "repair",
-                    event_date="2026-01-10",
-                    created_at="2026-06-01T00:00:00+00:00",
-                    updated_at="2026-07-27T00:16:01+00:00",
-                ),
             ]
         )
 
         selection = select_weekly_events(repository, now=self.now)
 
-        self.assertEqual([item.id for item in selection.events], ["legacy"])
-        self.assertEqual(selection.source_activity_count, 1)
+        self.assertEqual(selection.events, [])
+        self.assertEqual(selection.source_activity_count, 0)
 
     def test_withheld_event_is_never_selected(self) -> None:
         repository = MemoryRepository(

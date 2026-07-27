@@ -48,14 +48,7 @@ def _as_utc(value: str | None) -> datetime | None:
 
 
 def _source_activity_at(event: Any) -> datetime | None:
-    explicit = _as_utc(event.source_updated_at)
-    if explicit:
-        return explicit
-    created = _as_utc(event.created_at)
-    updated = _as_utc(event.updated_at)
-    if created and updated and abs(updated - created) <= timedelta(minutes=10):
-        return created
-    return None
+    return _as_utc(event.source_updated_at)
 
 
 def select_weekly_events(

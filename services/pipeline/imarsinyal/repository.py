@@ -349,7 +349,11 @@ class FirestoreRepository(Repository):
     def list_events(self, published_only: bool = False) -> list[PlanningEvent]:
         query = self.db.collection("planning_events")
         if published_only:
-            query = query.where("publication_status", "!=", "withheld")
+            from google.cloud.firestore_v1.base_query import FieldFilter
+
+            query = query.where(
+                filter=FieldFilter("publication_status", "!=", "withheld")
+            )
         return [PlanningEvent.from_dict(snapshot.to_dict()) for snapshot in query.stream()]
 
     def record_run(self, run: dict[str, Any]) -> None:
@@ -375,8 +379,12 @@ class FirestoreRepository(Repository):
             )
 
     def mark_unseen_aski(self, seen_external_ids: set[str]) -> int:
+        from google.cloud.firestore_v1.base_query import FieldFilter
+
         unseen = []
-        query = self.db.collection("sources").where("source_kind", "==", "aski")
+        query = self.db.collection("sources").where(
+            filter=FieldFilter("source_kind", "==", "aski")
+        )
         for snapshot in query.stream():
             data = snapshot.to_dict()
             if data.get("active") and data.get("external_id") not in seen_external_ids:
