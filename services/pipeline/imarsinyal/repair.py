@@ -7,6 +7,7 @@ from typing import Any
 from .models import PlanningEvent
 from .normalization import (
     clear_unchanged_metrics,
+    district_from_text,
     impact_score,
     normalize_parcels,
 )
@@ -71,6 +72,51 @@ def repair_event_parcels(
             )
         if apply:
             event.parcels = after
+            if repository.save_event(event):
+                written += 1
+
+    return {
+        "mode": "apply" if apply else "dry_run",
+        "checked_events": checked,
+        "changed_events": changed,
+        "written_events": written,
+        "samples": samples,
+    }
+
+
+def repaired_district(event: PlanningEvent) -> str:
+    if event.district and event.district != "Ankara":
+        return event.district
+    inferred = district_from_text(f"{event.title} {event.summary or ''}")
+    return inferred or event.district or "Ankara"
+
+
+def repair_event_districts(
+    repository: Repository, *, apply: bool = False
+) -> dict[str, Any]:
+    checked = 0
+    changed = 0
+    written = 0
+    samples: list[dict[str, Any]] = []
+
+    for event in repository.list_events():
+        checked += 1
+        before = event.district
+        after = repaired_district(event)
+        if before == after:
+            continue
+        changed += 1
+        if len(samples) < 25:
+            samples.append(
+                {
+                    "event_id": event.id,
+                    "slug": event.slug,
+                    "before": before,
+                    "after": after,
+                }
+            )
+        if apply:
+            event.district = after
             if repository.save_event(event):
                 written += 1
 

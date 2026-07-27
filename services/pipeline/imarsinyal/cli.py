@@ -9,7 +9,11 @@ from dotenv import load_dotenv
 
 from .newsletter import preview_weekly_newsletter, send_weekly_newsletter
 from .pipeline import run_pipeline
-from .repair import repair_equal_metrics, repair_event_parcels
+from .repair import (
+    repair_equal_metrics,
+    repair_event_districts,
+    repair_event_parcels,
+)
 from .repository import create_repository
 
 
@@ -38,6 +42,12 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Write proposed repairs. Without this flag the command is read-only.",
     )
+    repair_districts = subcommands.add_parser("repair-districts")
+    repair_districts.add_argument(
+        "--apply",
+        action="store_true",
+        help="Write inferred district repairs. Without this flag the command is read-only.",
+    )
     repair_metrics = subcommands.add_parser("repair-metrics")
     repair_metrics.add_argument(
         "--apply",
@@ -63,6 +73,8 @@ def main() -> None:
         )
     elif args.command == "repair-parcels":
         result = repair_event_parcels(repository, apply=args.apply)
+    elif args.command == "repair-districts":
+        result = repair_event_districts(repository, apply=args.apply)
     elif args.command == "repair-metrics":
         result = repair_equal_metrics(repository, apply=args.apply)
     else:

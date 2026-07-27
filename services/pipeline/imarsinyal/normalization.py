@@ -69,6 +69,24 @@ CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
 }
 
 
+def _fold_turkish(value: str) -> str:
+    lowered = value.translate(str.maketrans({"I": "ı", "İ": "i"})).casefold()
+    normalized = unicodedata.normalize("NFKD", lowered)
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def _turkish_title(value: str) -> str:
+    lowered = value.translate(str.maketrans({"I": "ı", "İ": "i"})).lower()
+
+    def capitalize(part: str) -> str:
+        if not part:
+            return part
+        initial = part[0].translate(str.maketrans({"i": "İ", "ı": "I"})).upper()
+        return initial + part[1:]
+
+    return " ".join(capitalize(part) for part in lowered.split())
+
+
 def stable_hash(value: Any) -> str:
     payload = json.dumps(
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str
@@ -192,9 +210,9 @@ def normalize_parcels(text: str | None) -> list[str]:
 
 
 def district_from_text(text: str) -> str | None:
-    folded = text.casefold()
+    folded = _fold_turkish(text)
     for district in DISTRICTS:
-        if district.casefold() in folded:
+        if _fold_turkish(district) in folded:
             return district
     return None
 
@@ -208,37 +226,37 @@ def neighborhood_from_text(text: str) -> str | None:
     if not match:
         return None
     value = re.sub(r"\s+", " ", match.group(1)).strip(" ,-")
-    def folded(value: str) -> str:
-        return value.casefold().replace("\N{COMBINING DOT ABOVE}", "")
-
     stop_words = {
-        "ili",
-        "il",
-        "ilçesi",
-        "ilçe",
-        "ilçemiz",
-        "dan",
-        "den",
-        "nden",
-        "ankara",
-        "onay",
-        "tarihi",
-        "plan",
-        "planı",
-        "değişikliği",
-        "parselasyon",
-        "konusu",
-        "mevkii",
-        "uygulama",
-        "imar",
-        "nolu",
-        "belediyesi",
-        "başkanlığından",
+        _fold_turkish(word)
+        for word in {
+            "ili",
+            "il",
+            "ilçesi",
+            "ilçe",
+            "ilçemiz",
+            "dan",
+            "den",
+            "nden",
+            "ankara",
+            "onay",
+            "tarihi",
+            "plan",
+            "planı",
+            "değişikliği",
+            "parselasyon",
+            "konusu",
+            "mevkii",
+            "uygulama",
+            "imar",
+            "nolu",
+            "belediyesi",
+            "başkanlığından",
+        }
     }
-    district_names = {folded(district) for district in DISTRICTS}
+    district_names = {_fold_turkish(district) for district in DISTRICTS}
     selected: list[str] = []
     for part in reversed(value.split()):
-        key = folded(part.strip(" ,-/()"))
+        key = _fold_turkish(part.strip(" ,-/()"))
         if key in stop_words or key in district_names:
             if selected:
                 break
@@ -246,7 +264,7 @@ def neighborhood_from_text(text: str) -> str | None:
         selected.append(part)
         if len(selected) == 3:
             break
-    return " ".join(reversed(selected)).title() if selected else None
+    return _turkish_title(" ".join(reversed(selected))) if selected else None
 
 
 def plan_scales_from_text(text: str) -> list[str]:

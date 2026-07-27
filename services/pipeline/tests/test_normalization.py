@@ -5,13 +5,39 @@ import unittest
 from imarsinyal.models import Evidence, ExtractedChange, MetricChange, PlanningEvent
 from imarsinyal.normalization import (
     clear_unchanged_metrics,
+    district_from_text,
+    neighborhood_from_text,
     normalize_metric_kind,
     normalize_parcels,
 )
-from imarsinyal.repair import repaired_parcels
+from imarsinyal.repair import repaired_district, repaired_parcels
 
 
 class MetricGuardTests(unittest.TestCase):
+    def test_uppercase_turkish_districts_are_normalized(self) -> None:
+        self.assertEqual(
+            district_from_text("KEÇİÖREN İLÇESİ BAĞLUM 1.VE2.ETAP"),
+            "Keçiören",
+        )
+        self.assertEqual(
+            district_from_text("GÖLBAŞI İLÇESİ BEZİRHANE MAH."),
+            "Gölbaşı",
+        )
+        self.assertEqual(
+            district_from_text("NALLIHAN İLÇESİ YUKARI BAĞLICA MAH."),
+            "Nallıhan",
+        )
+
+    def test_uppercase_turkish_neighborhood_is_normalized(self) -> None:
+        self.assertEqual(
+            neighborhood_from_text("GÖLBAŞI İLÇESİ BEZİRHANE MAH."),
+            "Bezirhane",
+        )
+        self.assertEqual(
+            neighborhood_from_text("NALLIHAN İLÇESİ YUKARI BAĞLICA MAH."),
+            "Yukarı Bağlıca",
+        )
+
     def test_scales_decisions_and_adjacent_adas_are_not_parcels(self) -> None:
         text = (
             "513, 514, 515, 517 ve 518 adalarda 1/5000 ve 1/1000 ölçekli "
@@ -152,6 +178,15 @@ class ParcelRepairTests(unittest.TestCase):
     def test_repair_preserves_unverifiable_but_plausible_existing_parcel(self) -> None:
         event = self.event("Beytepe plan değişikliği", ["18116/1"])
         self.assertEqual(repaired_parcels(event), ["18116/1"])
+
+    def test_repair_infers_only_missing_ankara_district(self) -> None:
+        event = self.event(
+            "KEÇİÖREN İLÇESİ BAĞLUM 1.VE2.ETAP",
+            [],
+        )
+        self.assertEqual(repaired_district(event), "Keçiören")
+        event.district = "Çankaya"
+        self.assertEqual(repaired_district(event), "Çankaya")
 
 
 if __name__ == "__main__":
